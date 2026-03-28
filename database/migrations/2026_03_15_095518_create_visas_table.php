@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('phone',11);
             $table->string('passport',20)->unique();
             $table->string('invoice',20)->unique();
+            $table->string('member',100);
 
             // Foreign Keys
             $table->foreignId('country_id')

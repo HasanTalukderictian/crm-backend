@@ -19,7 +19,7 @@ class Visa extends Model
         'date',
         'asset_valuation',
         'salary_amount',
-
+        'member',
         'image',
         'bank_certificate',
         'nid_file',
