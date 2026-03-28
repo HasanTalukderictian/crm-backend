@@ -14,6 +14,7 @@ class Visa extends Model
         'phone',
         'passport',
         'country',
+        'invoice',
         'sales_person',
         'date',
         'asset_valuation',

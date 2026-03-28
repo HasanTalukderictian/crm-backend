@@ -17,7 +17,8 @@ return new class extends Migration
             // Basic Info
             $table->string('name');
             $table->string('phone',11);
-            $table->string('passport',20);
+            $table->string('passport',20)->unique();
+            $table->string('invoice',20)->unique();
 
             // Foreign Keys
             $table->foreignId('country_id')
