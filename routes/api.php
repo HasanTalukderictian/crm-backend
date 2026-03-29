@@ -24,6 +24,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CountryController;
+use App\Http\Controllers\TargetController;
 use App\Http\Controllers\UserInfoController;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -55,6 +56,11 @@ Route::middleware('auth:sanctum')->group(function(){
 
 });
 
+
+Route::post('/set-target', [TargetController::class, 'store']);
+
+Route::get('/get-target', [TargetController::class, 'index']);
+Route::post('/targets/{id}', [TargetController::class, 'update']);
 
 // Route::post('/add-reviews', [VisaController::class, 'store']);
 // Route::get('/get-reviews', [VisaController::class, 'index']);
