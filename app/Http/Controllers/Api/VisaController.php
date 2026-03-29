@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Visa;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\SendSMSController;
-
+use Illuminate\Support\Facades\Log;
 
 class VisaController extends Controller
 {
@@ -38,175 +38,105 @@ class VisaController extends Controller
         ]);
     }
 
+public function update(Request $request, $id)
+{
+    $visa = Visa::find($id);
 
-    public function update(Request $request, $id)
-    {
-        $visa = Visa::find($id);
-
-        if (!$visa) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Visa record not found'
-            ], 404);
-        }
-
-        // Validation
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'required|digits:11',
-            'member' => 'required|string',
-            'passport' => 'required|min:6|max:9',
-            'invoice' => 'required|string|max:255|unique:visas,invoice,' . $id,
-            'country' => 'required|exists:countries,id',
-            'salesPerson' => 'required|exists:teams,id',
-            'applicantType' => 'required|in:job,business',
-        ]);
-
-        // Update basic fields
-        $visa->name = $request->name;
-        $visa->phone = $request->phone;
-        $visa->member = $request->member;
-        $visa->passport = $request->passport;
-        $visa->invoice = $request->invoice;
-        $visa->applicant_type = $request->applicantType;
-
-
-        $visa->country_id = $request->country;
-        $visa->team_id = $request->salesPerson;
-
-        $visa->date = $request->date;
-        $visa->asset_valuation = $request->assetValuation;
-        $visa->salary_amount = $request->salaryAmount;
-
-        // File Fields
-        $files = [
-            'image',
-            'bankCertificate',
-            'nidFile',
-            'birthCertificate',
-            'marriageCertificate',
-            'fixedDepositCertificate',
-            'taxCertificate',
-            'tinCertificate',
-            'creditCardCopy',
-            'covidCertificate',
-            'nocLetter',
-            'officeId',
-            'salarySlips',
-            'governmentOrder',
-            'visitingCard',
-            'companyBankStatement',
-            'blankOfficePad',
-            'renewalTradeLicense',
-            'memorandumLimited'
-        ];
-
-        foreach ($files as $file) {
-
-            if ($request->hasFile($file)) {
-
-                $uploadedFile = $request->file($file);
-
-                // store new file
-                $path = $uploadedFile->store('visa', 'public');
-
-                // convert camelCase → snake_case
-                $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $file));
-
-                // update column
-                $visa->$column = asset('storage/' . $path);
-            }
-        }
-
-        $visa->save();
-
+    if (!$visa) {
         return response()->json([
-            'status' => true,
-            'message' => 'Visa Updated Successfully',
-            'data' => $visa
-        ]);
+            'status' => false,
+            'message' => 'Visa record not found'
+        ], 404);
     }
 
-    // public function store(Request $request)
-    // {
+    // Validation
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'phone' => 'required|digits:11',
+        'member' => 'required|string',
+        'passport' => 'required|min:6|max:9',
+        'invoice' => 'required|string|max:255|unique:visas,invoice,' . $id,
+        'country' => 'required|exists:countries,id',
+        'salesPerson' => 'required|exists:teams,id',
+        'applicantType' => 'required|in:job,business',
+    ]);
 
-    //     // Validation
-    //     $request->validate([
-    //         'name' => 'required|string|max:255',
-    //         'phone' => 'required|digits:11',
-    //         'passport' => 'required|min:6|max:9',
-    //         'invoice' => 'required|string|max:255|unique:visas,invoice',
-    //         'country' => 'required|exists:countries,id',
-    //         'salesPerson' => 'required|exists:teams,id',
-    //         'applicantType' => 'required|in:job,business',
-    //     ]);
+    // Update basic fields
+    $visa->name = $request->name;
+    $visa->phone = $request->phone;
+    $visa->member = $request->member;
+    $visa->passport = $request->passport;
+    $visa->invoice = $request->invoice;
+    $visa->applicant_type = $request->applicantType;
 
+    $visa->country_id = $request->country;
+    $visa->team_id = $request->salesPerson;
 
-    //     $visa = new Visa();
+    $visa->date = $request->date;
+    $visa->asset_valuation = $request->assetValuation;
+    $visa->salary_amount = $request->salaryAmount;
 
-    //     $visa->name = $request->name;
-    //     $visa->phone = $request->phone;
-    //     $visa->passport = $request->passport;
-    //     $visa->invoice = $request->invoice;
-    //     $visa->applicant_type = $request->applicantType;
+    // File Fields
+    $files = [
+        'image',
+        'bankCertificate',
+        'nidFile',
+        'birthCertificate',
+        'marriageCertificate',
+        'fixedDepositCertificate',
+        'taxCertificate',
+        'tinCertificate',
+        'creditCardCopy',
+        'covidCertificate',
+        'nocLetter',
+        'officeId',
+        'salarySlips',
+        'governmentOrder',
+        'visitingCard',
+        'companyBankStatement',
+        'blankOfficePad',
+        'renewalTradeLicense',
+        'memorandumLimited'
+    ];
 
-    //     // Foreign Keys
-    //     $visa->country_id = $request->country;
-    //     $visa->team_id = $request->salesPerson;
+    foreach ($files as $file) {
+        if ($request->hasFile($file)) {
 
-    //     $visa->date = $request->date;
+            $uploadedFile = $request->file($file);
 
-    //     $visa->asset_valuation = $request->assetValuation;
-    //     $visa->salary_amount = $request->salaryAmount;
+            $path = $uploadedFile->store('visa', 'public');
 
+            $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $file));
 
-    //     // File Fields
-    //     $files = [
-    //         'image',
-    //         'bankCertificate',
-    //         'nidFile',
-    //         'birthCertificate',
-    //         'marriageCertificate',
-    //         'fixedDepositCertificate',
-    //         'taxCertificate',
-    //         'tinCertificate',
-    //         'creditCardCopy',
-    //         'covidCertificate',
-    //         'nocLetter',
-    //         'officeId',
-    //         'salarySlips',
-    //         'governmentOrder',
-    //         'visitingCard',
-    //         'companyBankStatement',
-    //         'blankOfficePad',
-    //         'renewalTradeLicense',
-    //         'memorandumLimited'
-    //     ];
+            $visa->$column = asset('storage/' . $path);
+        }
+    }
 
+    $visa->save();
 
-    //     foreach ($files as $file) {
-    //         if ($request->hasFile($file)) {
-    //             $uploadedFile = $request->file($file);
+    // ================= SMS MESSAGE =================
 
-    //             // Save file in storage/app/public/visa
-    //             $path = $uploadedFile->store('visa', 'public');
+    $message = "Dear {$visa->name}, your visa information has been updated successfully.";
 
-    //             // convert camelCase → snake_case
-    //             $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $file));
+    // ================= SMS SEND =================
 
-    //             // Save full URL in DB
-    //             $visa->$column = asset('storage/' . $path);
-    //         }
-    //     }
+    try {
+        $phone = '88' . $visa->phone; // correct format
 
-    //     $visa->save();
+        SendSMSController::sendSms($phone, $message);
 
-    //     return response()->json([
-    //         'status' => true,
-    //         'message' => 'Visa Applied Successfully',
-    //         'data' => $visa
-    //     ]);
-    // }
+    } catch (\Exception $e) {
+        Log::error('SMS Failed: ' . $e->getMessage());
+    }
+
+    // ================= RESPONSE =================
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Visa Updated Successfully',
+        'data' => $visa
+    ]);
+}
 
 
 
@@ -310,11 +240,11 @@ class VisaController extends Controller
         // ================= SMS SEND (Safe) =================
 
         try {
-            $phone = '+88' . $request->phone;
+            $phone = '88' . $request->phone; // SSL Wireless এ + লাগে না
 
             SendSMSController::sendSms($phone, $message);
         } catch (\Exception $e) {
-            // SMS fail হলেও API fail করবে না
+            Log::error('SMS Failed: ' . $e->getMessage());
         }
 
         // ================= Final Response =================
