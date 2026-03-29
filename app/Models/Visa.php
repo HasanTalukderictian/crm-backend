@@ -15,6 +15,7 @@ class Visa extends Model
         'passport',
         'country',
         'invoice',
+          'user_id',
         'sales_person',
         'date',
         'asset_valuation',
@@ -50,4 +51,9 @@ class Visa extends Model
     {
         return $this->belongsTo(Team::class);
     }
+
+    public function user()
+{
+    return $this->belongsTo(User::class);
+}
 }

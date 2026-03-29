@@ -56,12 +56,22 @@ Route::middleware('auth:sanctum')->group(function(){
 });
 
 
-Route::post('/add-reviews', [VisaController::class, 'store']);
-Route::get('/get-reviews', [VisaController::class, 'index']);
-Route::delete('/del-reviews/{id}', [VisaController::class, 'destroy']);
+// Route::post('/add-reviews', [VisaController::class, 'store']);
+// Route::get('/get-reviews', [VisaController::class, 'index']);
+// Route::delete('/del-reviews/{id}', [VisaController::class, 'destroy']);
 
-Route::get('/visa-view/{id}', [VisaController::class, 'show']);
-Route::post('/visa-update/{id}', [VisaController::class,'update']);
+// Route::get('/visa-view/{id}', [VisaController::class, 'show']);
+// Route::post('/visa-update/{id}', [VisaController::class,'update']);
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    Route::get('/get-reviews', [VisaController::class, 'index']);
+    Route::post('/add-reviews', [VisaController::class, 'store']);
+    Route::delete('/del-reviews/{id}', [VisaController::class, 'destroy']);
+    Route::get('/visa-view/{id}', [VisaController::class, 'show']);
+    Route::post('/visa-update/{id}', [VisaController::class,'update']);
+
+});
 
 
 Route::get('/departments', [DepartmentController::class, 'index']);
