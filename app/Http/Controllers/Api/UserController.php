@@ -24,6 +24,26 @@ class UserController extends Controller
     }
 
     // =========================
+// Reset User Password
+// =========================
+public function resetPassword(Request $request, $id)
+{
+    $request->validate([
+        'password' => 'required|min:6|confirmed'
+    ]);
+
+    $user = User::findOrFail($id);
+
+    $user->password = Hash::make($request->password);
+    $user->save();
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Password reset successfully'
+    ]);
+}
+
+    // =========================
     // Create User (Modal Form)
     // =========================
     public function store(Request $request)
