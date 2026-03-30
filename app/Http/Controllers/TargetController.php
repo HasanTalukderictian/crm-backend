@@ -11,7 +11,7 @@ class TargetController extends Controller
     //
 
 
-    public function index(Request $request)
+public function index(Request $request)
 {
     $query = Target::with('user');
 
@@ -30,12 +30,23 @@ class TargetController extends Controller
 
     $targets = $query->orderBy('id', 'desc')->paginate(10);
 
+    // 🔥 modify response data
+    $targets->getCollection()->transform(function ($t) {
+        $t->remaining = $t->target - $t->achieved;
+
+        // optional progress %
+        $t->progress = $t->target > 0
+            ? round(($t->achieved / $t->target) * 100, 2)
+            : 0;
+
+        return $t;
+    });
+
     return response()->json([
         'status' => true,
         'data' => $targets
     ]);
 }
-
 
 
 public function store(Request $request)
