@@ -457,6 +457,28 @@ class VisaController extends Controller
 
         $visa->save();
 
+          $target = Target::where('user_id', auth()->id())
+            ->where('year', date('Y'))
+            ->where('month', date('m'))
+            ->first();
+
+        if ($target) {
+
+            $memberCount = is_numeric($request->member)
+                ? (int) $request->member
+                : count(explode(',', $request->member));
+
+            $newAchieved = $target->achieved + $memberCount;
+
+            // 🔥 target limit cross na kore
+            if ($newAchieved > $target->target) {
+                $target->achieved = $target->target;
+            } else {
+                $target->achieved = $newAchieved;
+            }
+
+            $target->save();
+        }
 
 
 
@@ -616,14 +638,29 @@ class VisaController extends Controller
         $visa->save();
 
 
+
         // ================= TARGET UPDATE =================
         $target = Target::where('user_id', auth()->id())
             ->where('year', date('Y'))
             ->where('month', date('m'))
             ->first();
 
-        if ($target && $target->achieved < $target->target) {
-            $target->increment('achieved');
+        if ($target) {
+
+            $memberCount = is_numeric($request->member)
+                ? (int) $request->member
+                : count(explode(',', $request->member));
+
+            $newAchieved = $target->achieved + $memberCount;
+
+            // 🔥 target limit cross na kore
+            if ($newAchieved > $target->target) {
+                $target->achieved = $target->target;
+            } else {
+                $target->achieved = $newAchieved;
+            }
+
+            $target->save();
         }
 
         // ================= SMS SEND =================
@@ -644,19 +681,30 @@ class VisaController extends Controller
 
     public function destroy($id)
     {
-
         $visa = Visa::findOrFail($id);
 
+        // 🔥 member count বের করা (delete করার আগে)
+        $memberCount = is_numeric($visa->member)
+            ? (int) $visa->member
+            : count(explode(',', $visa->member));
+
+        // 🔥 delete
         $visa->delete();
 
-
+        // 🔥 target update
         $target = Target::where('user_id', $visa->user_id)
             ->where('year', date('Y'))
             ->where('month', date('m'))
             ->first();
 
-        if ($target && $target->achieved > 0) {
-            $target->decrement('achieved');
+        if ($target) {
+
+            $newAchieved = $target->achieved - $memberCount;
+
+            // ❌ negative না হয়
+            $target->achieved = $newAchieved < 0 ? 0 : $newAchieved;
+
+            $target->save();
         }
 
         return response()->json([

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VisaController;
 use Illuminate\Http\Request;
@@ -79,6 +80,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/visa-update/{id}', [VisaController::class,'update']);
 
 });
+
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    Route::post('/send-notification', [NotificationController::class, 'send']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+});
+
 
 
 Route::get('/departments', [DepartmentController::class, 'index']);
