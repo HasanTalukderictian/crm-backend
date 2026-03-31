@@ -88,4 +88,29 @@ public function resetPassword(Request $request, $id)
         ]);
     }
 
+
+
+
+    public function me(Request $request)
+{
+    $user = auth()->user();
+
+    if (!$user) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Unauthorized'
+        ], 401);
+    }
+
+    return response()->json([
+        'status' => true,
+        'data' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'created_at' => $user->created_at
+        ]
+    ]);
+}
 }

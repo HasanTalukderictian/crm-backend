@@ -56,7 +56,10 @@ Route::middleware('auth:sanctum')->group(function(){
 
     Route::post('/users/{id}/toggle-status',[UserController::class,'toggleStatus']);
 
+    Route::get('/me', [UserController::class, 'me']);
+
 });
+
 
 
 Route::post('/set-target', [TargetController::class, 'store']);
@@ -67,6 +70,7 @@ Route::post('/targets/{id}', [TargetController::class, 'update']);
 Route::middleware('auth:sanctum')->get('/monthly-achieved', [TargetController::class, 'monthlyAchieved']);
 Route::middleware('auth:sanctum')->get('/top-users-achieved', [TargetController::class, 'topUsersByAchieved']);
 Route::middleware('auth:sanctum')->get('/achieved-summary', [TargetController::class, 'achievedSummary']);
+Route::middleware(['auth:sanctum'])->get('/monthly-summary', [TargetController::class, 'monthlySummary']);
 
 Route::middleware('auth:sanctum')->group(function () {
 

@@ -171,30 +171,65 @@ public function monthlyAchieved(Request $request)
 
 
 
+// public function topUsersByAchieved(Request $request)
+// {
+//     $year = $request->year ?? date('Y');
+//     $limit = $request->limit ?? 5;
+
+//     $query = Target::query()
+//         ->with('user')
+//         ->where('year', $year);
+
+//     // 🔐 optional role filter (admin panel → usually no restriction needed)
+//     if (auth()->check() && auth()->user()->role !== 'admin') {
+//         $query->where('user_id', auth()->id());
+//     }
+
+//     $topUsers = $query
+//         ->select('user_id', DB::raw('SUM(achieved) as total_achieved'))
+//         ->groupBy('user_id')
+//         ->orderByDesc('total_achieved')
+//         ->limit($limit)
+//         ->get();
+
+//     // 🔥 format response
+//     $data = $topUsers->map(function ($item) {
+//         return [
+//             'user_id' => $item->user_id,
+//             'name' => $item->user->name ?? 'Unknown',
+//             'total_achieved' => (int) $item->total_achieved,
+//         ];
+//     });
+
+//     return response()->json([
+//         'status' => true,
+//         'year' => $year,
+//         'data' => $data
+//     ]);
+// }
+
+
+
+
+
 public function topUsersByAchieved(Request $request)
 {
-    $year = $request->year ?? date('Y');
+    $year  = $request->year ?? date('Y');
     $limit = $request->limit ?? 5;
 
-    $query = Target::query()
+    $topUsers = Target::query()
         ->with('user')
-        ->where('year', $year);
-
-    // 🔐 optional role filter (admin panel → usually no restriction needed)
-    if (auth()->check() && auth()->user()->role !== 'admin') {
-        $query->where('user_id', auth()->id());
-    }
-
-    $topUsers = $query
+        ->where('year', $year)
         ->select('user_id', DB::raw('SUM(achieved) as total_achieved'))
         ->groupBy('user_id')
         ->orderByDesc('total_achieved')
         ->limit($limit)
         ->get();
 
-    // 🔥 format response
-    $data = $topUsers->map(function ($item) {
+    // 🔥 format response with rank
+    $data = $topUsers->map(function ($item, $index) {
         return [
+            'rank' => $index + 1,
             'user_id' => $item->user_id,
             'name' => $item->user->name ?? 'Unknown',
             'total_achieved' => (int) $item->total_achieved,
@@ -207,7 +242,6 @@ public function topUsersByAchieved(Request $request)
         'data' => $data
     ]);
 }
-
 
 
 public function achievedSummary(Request $request)
@@ -247,6 +281,48 @@ public function achievedSummary(Request $request)
             'today_achieved' => (int) $todayAchieved,
             'monthly_achieved' => (int) $monthlyAchieved,
             'total_achieved' => (int) $totalAchieved,
+        ]
+    ]);
+}
+
+
+public function monthlySummary(Request $request)
+{
+    $year  = $request->year ?? date('Y');
+    $month = $request->month ?? date('m');
+
+    $query = Target::query();
+
+    // 🔐 role check
+    if (auth()->check() && auth()->user()->role !== 'admin') {
+        $query->where('user_id', auth()->id());
+    }
+
+    // 🔹 filter by year & month
+    $query->where('year', $year)
+          ->where('month', $month);
+
+    // 🔹 totals
+    $totalTarget = (clone $query)->sum('target');
+    $totalAchieved = (clone $query)->sum('achieved');
+
+    // 🔹 remaining
+    $totalRemaining = $totalTarget - $totalAchieved;
+
+    // 🔹 progress %
+    $progress = $totalTarget > 0
+        ? round(($totalAchieved / $totalTarget) * 100, 2)
+        : 0;
+
+    return response()->json([
+        'status' => true,
+        'data' => [
+            'year' => (int) $year,
+            'month' => (int) $month,
+            'total_target' => (int) $totalTarget,
+            'total_achieved' => (int) $totalAchieved,
+            'total_remaining' => (int) $totalRemaining,
+            'progress' => $progress
         ]
     ]);
 }
