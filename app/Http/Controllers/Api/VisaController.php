@@ -93,6 +93,7 @@ class VisaController extends Controller
             'country' => 'required|exists:countries,id',
             'salesPerson' => 'required|exists:teams,id',
             'applicantType' => 'required|in:job,business',
+            'status' => 'nullable|in:Pending,Processing,Complete',
         ]);
 
         // ================= FILE LABELS =================
@@ -176,6 +177,7 @@ class VisaController extends Controller
         $visa->date = $request->date;
         $visa->asset_valuation = $request->assetValuation;
         $visa->salary_amount = $request->salaryAmount;
+        $visa->status = $request->status ?? $visa->status;
 
         // ================= FILE UPLOAD =================
         foreach ($fieldLabels as $field => $label) {
@@ -244,6 +246,7 @@ class VisaController extends Controller
             'salesPerson' => 'required|exists:teams,id',
             'applicantType' => 'required|in:job,business',
             'member' => 'required|string',
+            'status' => 'nullable|in:Pending,Processing,Complete',
         ]);
 
         // ================= Missing Field Labels =================
@@ -335,6 +338,7 @@ class VisaController extends Controller
         $visa->date = $request->date;
         $visa->asset_valuation = $request->assetValuation;
         $visa->salary_amount = $request->salaryAmount;
+        $visa->status = $request->status ?? 'Pending';
 
         // ================= File Upload =================
         $files = [

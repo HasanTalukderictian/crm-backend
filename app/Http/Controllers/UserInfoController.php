@@ -45,32 +45,36 @@ class UserInfoController extends Controller
 }
 
     // Update existing user info
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'company_name' => 'required|string|max:255|unique:user_infos,company_name,'.$id,
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-        ]);
+  public function update(Request $request, $id)
+{
+    $request->validate([
+        'company_name' => 'required|string|max:255|unique:user_infos,company_name,'.$id,
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+    ]);
 
-        $userInfo = UserInfo::findOrFail($id);
+    $userInfo = UserInfo::findOrFail($id);
 
-        if ($request->hasFile('image')) {
-            // delete old image if exists
-            if ($userInfo->image && Storage::exists('public/'.$userInfo->image)) {
-                Storage::delete('public/'.$userInfo->image);
-            }
+    if ($request->hasFile('image')) {
 
-            $path = $request->file('image')->store('user_info', 'public');
-            $userInfo->image = $path;
+        // delete old image (correct way)
+        if ($userInfo->image) {
+            $oldPath = str_replace(URL::to('/') . '/storage/', '', $userInfo->image);
+            Storage::disk('public')->delete($oldPath);
         }
 
-        $userInfo->company_name = $request->company_name;
-        $userInfo->save();
+        $path = $request->file('image')->store('user_info', 'public');
 
-        return response()->json([
-            'status' => true,
-            'message' => 'User info updated successfully!',
-            'data' => $userInfo
-        ]);
+        // ✅ same format as store
+        $userInfo->image = URL::to('/') . '/storage/' . $path;
     }
+
+    $userInfo->company_name = $request->company_name;
+    $userInfo->save();
+
+    return response()->json([
+        'status' => true,
+        'message' => 'User info updated successfully!',
+        'data' => $userInfo
+    ]);
+}
 }

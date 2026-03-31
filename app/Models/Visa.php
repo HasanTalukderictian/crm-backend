@@ -16,6 +16,7 @@ class Visa extends Model
         'country',
         'invoice',
           'user_id',
+          'status',
         'sales_person',
         'date',
         'asset_valuation',
