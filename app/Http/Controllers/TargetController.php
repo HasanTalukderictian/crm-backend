@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Target;
+use App\Models\Visa;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TargetController extends Controller
 {
@@ -132,7 +134,121 @@ public function update(Request $request, $id)
 }
 
 
+public function monthlyAchieved(Request $request)
+{
+    $year = $request->year ?? date('Y');
+
+    $query = Target::query();
+
+    // 🔐 role check
+    if (auth()->check() && auth()->user()->role !== 'admin') {
+        $query->where('user_id', auth()->id());
+    }
+
+    // 🔹 get monthly achieved from target table
+    $results = $query
+        ->where('year', $year)
+        ->selectRaw('month, SUM(achieved) as total')
+        ->groupBy('month')
+        ->pluck('total', 'month');
+
+    // 🔹 build full 12 months
+    $months = [];
+
+    for ($m = 1; $m <= 12; $m++) {
+        $months[] = [
+            'month' => $m,
+            'achieved' => (int) ($results[$m] ?? 0),
+        ];
+    }
+
+    return response()->json([
+        'status' => true,
+        'year' => $year,
+        'data' => $months
+    ]);
+}
 
 
+
+public function topUsersByAchieved(Request $request)
+{
+    $year = $request->year ?? date('Y');
+    $limit = $request->limit ?? 5;
+
+    $query = Target::query()
+        ->with('user')
+        ->where('year', $year);
+
+    // 🔐 optional role filter (admin panel → usually no restriction needed)
+    if (auth()->check() && auth()->user()->role !== 'admin') {
+        $query->where('user_id', auth()->id());
+    }
+
+    $topUsers = $query
+        ->select('user_id', DB::raw('SUM(achieved) as total_achieved'))
+        ->groupBy('user_id')
+        ->orderByDesc('total_achieved')
+        ->limit($limit)
+        ->get();
+
+    // 🔥 format response
+    $data = $topUsers->map(function ($item) {
+        return [
+            'user_id' => $item->user_id,
+            'name' => $item->user->name ?? 'Unknown',
+            'total_achieved' => (int) $item->total_achieved,
+        ];
+    });
+
+    return response()->json([
+        'status' => true,
+        'year' => $year,
+        'data' => $data
+    ]);
+}
+
+
+
+public function achievedSummary(Request $request)
+{
+    $date = $request->date ?? date('Y-m-d');
+    $year = date('Y', strtotime($date));
+    $month = date('m', strtotime($date));
+
+    $query = Target::query();
+
+    // 🔐 role check
+    if (auth()->check() && auth()->user()->role !== 'admin') {
+        $query->where('user_id', auth()->id());
+    }
+
+    // 🔹 Today achieved (safe range based on created_at)
+    $todayStart = $date . ' 00:00:00';
+    $todayEnd   = $date . ' 23:59:59';
+
+    $todayAchieved = (clone $query)
+        ->whereBetween('created_at', [$todayStart, $todayEnd])
+        ->sum('achieved');
+
+    // 🔹 Monthly achieved
+    $monthlyAchieved = (clone $query)
+        ->whereYear('created_at', $year)
+        ->whereMonth('created_at', $month)
+        ->sum('achieved');
+
+    // 🔹 Total achieved
+    $totalAchieved = (clone $query)->sum('achieved');
+
+    return response()->json([
+        'status' => true,
+        'data' => [
+            'date' => $date,
+            'today_achieved' => (int) $todayAchieved,
+            'monthly_achieved' => (int) $monthlyAchieved,
+            'total_achieved' => (int) $totalAchieved,
+        ]
+    ]);
+}
 
 }

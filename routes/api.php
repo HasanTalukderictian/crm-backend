@@ -64,12 +64,9 @@ Route::post('/set-target', [TargetController::class, 'store']);
 Route::get('/get-target', [TargetController::class, 'index']);
 Route::post('/targets/{id}', [TargetController::class, 'update']);
 
-// Route::post('/add-reviews', [VisaController::class, 'store']);
-// Route::get('/get-reviews', [VisaController::class, 'index']);
-// Route::delete('/del-reviews/{id}', [VisaController::class, 'destroy']);
-
-// Route::get('/visa-view/{id}', [VisaController::class, 'show']);
-// Route::post('/visa-update/{id}', [VisaController::class,'update']);
+Route::middleware('auth:sanctum')->get('/monthly-achieved', [TargetController::class, 'monthlyAchieved']);
+Route::middleware('auth:sanctum')->get('/top-users-achieved', [TargetController::class, 'topUsersByAchieved']);
+Route::middleware('auth:sanctum')->get('/achieved-summary', [TargetController::class, 'achievedSummary']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -78,6 +75,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/del-reviews/{id}', [VisaController::class, 'destroy']);
     Route::get('/visa-view/{id}', [VisaController::class, 'show']);
     Route::post('/visa-update/{id}', [VisaController::class,'update']);
+
+    Route::get('/monthly-visa-stats', [VisaController::class, 'monthlyVisaStats']);
 
 });
 
