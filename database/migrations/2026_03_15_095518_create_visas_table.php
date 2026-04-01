@@ -39,6 +39,8 @@ return new class extends Migration
             // Documents
             $table->string('image')->nullable();
             $table->string('bank_certificate')->nullable();
+             $table->string('note')->nullable();
+           $table->integer('remainder_days')->nullable();
             $table->string('nid_file')->nullable();
             $table->string('birth_certificate')->nullable();
             $table->string('marriage_certificate')->nullable();

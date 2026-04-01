@@ -88,6 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/del-reviews/{id}', [VisaController::class, 'destroy']);
     Route::get('/visa-view/{id}', [VisaController::class, 'show']);
     Route::post('/visa-update/{id}', [VisaController::class,'update']);
+    Route::get('/visa/{id}/messages', [VisaController::class, 'messageLogs']);
 
     Route::get('/monthly-visa-stats', [VisaController::class, 'monthlyVisaStats']);
 

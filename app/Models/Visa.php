@@ -17,7 +17,9 @@ class Visa extends Model
         'invoice',
           'user_id',
           'status',
+          'note',
         'sales_person',
+        'remainder_days',
         'date',
         'asset_valuation',
         'salary_amount',
@@ -56,5 +58,11 @@ class Visa extends Model
     public function user()
 {
     return $this->belongsTo(User::class);
+}
+
+
+public function messageLogs()
+{
+    return $this->hasMany(MessageLog::class);
 }
 }
