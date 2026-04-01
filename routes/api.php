@@ -91,6 +91,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/monthly-visa-stats', [VisaController::class, 'monthlyVisaStats']);
 
+        Route::get('/monthly-visa-status-summary', [VisaController::class, 'monthlyVisaStatusSummary']);
+
 });
 
 

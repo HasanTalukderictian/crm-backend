@@ -492,4 +492,40 @@ public function monthlyVisaStats()
 }
 
 
+
+
+public function monthlyVisaStatusSummary()
+{
+    $query = Visa::query();
+
+    // 🔐 Role check
+    if (auth()->user()->role !== 'admin') {
+        $query->where('user_id', auth()->id());
+    }
+
+    // 📅 Current month + year filter
+    $query->whereYear('date', date('Y'))
+          ->whereMonth('date', date('m'));
+
+    // 📊 Status wise count
+    $data = $query->select(
+        DB::raw("SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending"),
+        DB::raw("SUM(CASE WHEN status = 'Processing' THEN 1 ELSE 0 END) as processing"),
+        DB::raw("SUM(CASE WHEN status = 'Complete' THEN 1 ELSE 0 END) as complete"),
+        DB::raw("COUNT(*) as total")
+    )->first();
+
+    return response()->json([
+        'status' => true,
+        'data' => [
+            'pending' => $data->pending ?? 0,
+            'processing' => $data->processing ?? 0,
+            'complete' => $data->complete ?? 0,
+            'total' => $data->total ?? 0,
+        ]
+    ]);
+}
+
+
+
 }
