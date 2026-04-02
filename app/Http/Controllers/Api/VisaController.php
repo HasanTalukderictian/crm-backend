@@ -229,19 +229,55 @@ class VisaController extends Controller
             $target->save();
         }
 
+
         // ================= MESSAGE =================
         $customerName = $request->name;
 
-        if (count($missingFields) > 0) {
+        // 🔥 ADD THIS
+        $fileChecks = json_decode($request->fileChecks, true) ?? [];
 
-            $missingList = implode(", ", $missingFields);
+        if (!empty($filteredMissing)) {
 
-            $message = "Dear {$customerName}, your application is incomplete.\n"
-                . "Missing files: {$missingList}.\n"
-                . "Please submit these files to our office as soon as possible.";
+            // 🔥 only checkbox selected missing
+            $filteredMissing = [];
+
+            foreach ($missingFields as $fieldLabel) {
+
+                $key = array_search($fieldLabel, $fieldLabels);
+
+                if ($key && !empty($fileChecks[$key])) {
+                    $filteredMissing[] = $fieldLabel;
+                }
+            }
+
+            $message = "Dear {$customerName}, your application is incomplete.\n";
+
+            if (!empty($filteredMissing)) {
+                $message .= "Missing files: " . implode(", ", $filteredMissing) . ".\n";
+            }
+
+            $message .= "Please submit these files to our office as soon as possible.";
         } else {
 
-            $message = "Dear {$customerName}, your application is complete. Thank you for submitting all required documents. We appreciate your cooperation.";
+            // 🔥 only checkbox selected completed
+            $completedList = [];
+
+            foreach ($fieldLabels as $key => $label) {
+                if (!empty($fileChecks[$key])) {
+                    $completedList[] = $label;
+                }
+            }
+
+            $message = "Dear {$customerName}, your application is complete.\n";
+
+            if (!empty($completedList)) {
+                $message .= "Submitted: " . implode(", ", $completedList) . ".\n";
+            } else {
+                // 🔥 fallback যদি কিছু select না থাকে
+                $message .= "All required documents have been received.\n";
+            }
+
+            $message .= "Thank you for your cooperation.";
         }
 
         // ================= SMS =================
@@ -353,19 +389,58 @@ class VisaController extends Controller
             }
         }
 
+
+
+
         // ================= Message =================
         $customerName = $request->name;
 
-        if (count($missingFields) > 0) {
+        $fileChecks = json_decode($request->fileChecks, true) ?? [];
 
-            $missingList = implode(", ", $missingFields);
+        if (!empty($filteredMissing)) {
 
-            $message = "Dear {$customerName}, your application is incomplete.\n"
-                . "Missing files: {$missingList}.\n"
-                . "Please submit these files to our office as soon as possible.";
+            // 🔥 ONLY SELECTED missing fields
+            $filteredMissing = [];
+
+            foreach ($missingFields as $fieldLabel) {
+
+                // reverse match (label → key)
+                $key = array_search($fieldLabel, $fieldLabels);
+
+                if ($key && !empty($fileChecks[$key])) {
+                    $filteredMissing[] = $fieldLabel;
+                }
+            }
+
+            $missingList = implode(", ", $filteredMissing);
+
+            $message = "Dear {$customerName}, your application is incomplete.\n";
+
+            if (!empty($missingList)) {
+                $message .= "Missing files: {$missingList}.\n";
+            }
+
+            $message .= "Please submit these files to our office as soon as possible.";
         } else {
 
-            $message = "Dear {$customerName}, your application is complete. Thank you for submitting all required documents. We appreciate your cooperation.";
+            // 🔥 ONLY SELECTED completed fields
+            $completedList = [];
+
+            foreach ($fieldLabels as $key => $label) {
+                if (!empty($fileChecks[$key])) {
+                    $completedList[] = $label;
+                }
+            }
+
+            $completedText = implode(", ", $completedList);
+
+            $message = "Dear {$customerName}, your application is complete.\n";
+
+            if (!empty($completedText)) {
+                $message .= "Submitted: {$completedText}.\n";
+            }
+
+            $message .= "Thank you for your cooperation.";
         }
 
         // ================= Store =================
