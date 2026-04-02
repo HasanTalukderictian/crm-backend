@@ -93,11 +93,79 @@ class VisaController extends Controller
             'country' => 'required|exists:countries,id',
             'salesPerson' => 'required|exists:teams,id',
             'applicantType' => 'required|in:job,business',
-            'status' => 'nullable|in:Pending,Processing,Complete',
+            'status' => 'nullable|in:Pending,Processing,Complete,Cancle',
             'salaryAmount' => 'nullable|numeric',
             'remainder_days' => 'nullable|integer|min:0',
             'note' => 'nullable|string|max:255',
         ]);
+
+        // ================= Labels =================
+        $fieldLabels = [
+            'image' => 'Customer Image',
+            'bankCertificate' => 'Bank Certificate',
+            'nidFile' => 'NID Copy',
+            'assetValuation' => 'Asset Valuation',
+            'birthCertificate' => 'Birth Certificate',
+            'marriageCertificate' => 'Marriage Certificate',
+            'nocLetter' => 'NOC Letter',
+            'officeId' => 'Office ID',
+            'salarySlips' => 'Salary Slips',
+            'governmentOrder' => 'Government Order',
+            'visitingCard' => 'Visiting Card',
+            'blankOfficePad' => 'Blank Office Pad',
+            'renewalTradeLicense' => 'Renewal Trade License',
+            'memorandumLimited' => 'Memorandum Limited',
+        ];
+
+        $missingFields = [];
+
+        // ================= Applicant Type Check =================
+        if ($request->applicantType === "job") {
+
+            $jobFiles = ['nocLetter', 'officeId', 'salarySlips', 'governmentOrder', 'visitingCard'];
+
+            foreach ($jobFiles as $file) {
+                if (!$request->hasFile($file) && empty($visa->$file)) {
+                    $missingFields[] = $fieldLabels[$file];
+                }
+            }
+
+            if (!$request->salaryAmount) {
+                $missingFields[] = 'Salary Amount';
+            }
+        } elseif ($request->applicantType === "business") {
+
+            $businessFiles = ['blankOfficePad', 'renewalTradeLicense', 'memorandumLimited'];
+
+            foreach ($businessFiles as $file) {
+                if (!$request->hasFile($file) && empty($visa->$file)) {
+                    $missingFields[] = $fieldLabels[$file];
+                }
+            }
+        }
+
+        // ================= Common Files =================
+        $commonFiles = [
+            'image',
+            'bankCertificate',
+            'nidFile',
+            'assetValuation',
+            'birthCertificate',
+            'marriageCertificate'
+        ];
+
+        foreach ($commonFiles as $field) {
+
+            if ($field === 'assetValuation') {
+                if (empty($request->$field) && empty($visa->$field)) {
+                    $missingFields[] = $fieldLabels[$field];
+                }
+            } else {
+                if (!$request->hasFile($field) && empty($visa->$field)) {
+                    $missingFields[] = $fieldLabels[$field];
+                }
+            }
+        }
 
         // ================= Update Basic Info =================
         $visa->name = $request->name;
@@ -109,12 +177,10 @@ class VisaController extends Controller
         $visa->country_id = $request->country;
         $visa->team_id = $request->salesPerson;
         $visa->date = $request->date;
-
         $visa->asset_valuation = $request->assetValuation;
         $visa->salary_amount = $request->salaryAmount;
         $visa->remainder_days = $request->remainder_days;
         $visa->note = $request->note;
-
         $visa->status = $request->status ?? $visa->status;
 
         // ================= File Upload =================
@@ -135,40 +201,48 @@ class VisaController extends Controller
         ];
 
         foreach ($files as $file) {
-
             if ($request->hasFile($file)) {
-
                 $path = $request->file($file)->store('visa', 'public');
-
                 $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $file));
-
                 $visa->$column = asset('storage/' . $path);
             }
         }
 
         $visa->save();
 
-        // ================= TARGET UPDATE (FIXED) =================
+        $oldStatus = $visa->status;
+        $this->updateTargetAchieved($visa, $oldStatus);
+
+        // ================= TARGET UPDATE =================
         $target = Target::where('user_id', auth()->id())
             ->where('year', date('Y'))
             ->where('month', date('m'))
             ->first();
 
-        if ($target) {
+        if ($target && $visa->status !== 'Cancle') {
 
             $memberCount = is_numeric($request->member)
                 ? (int) $request->member
                 : count(explode(',', $request->member));
-
-            // ❗ IMPORTANT FIX: update না, শুধু increment করলে duplicate counting হবে
-            // better approach: recalculate OR only add difference
 
             $target->achieved = min($target->achieved + $memberCount, $target->target);
             $target->save();
         }
 
         // ================= MESSAGE =================
-        $message = "Dear {$request->name}, your data has been updated successfully ✅";
+        $customerName = $request->name;
+
+        if (count($missingFields) > 0) {
+
+            $missingList = implode(", ", $missingFields);
+
+            $message = "Dear {$customerName}, your application is incomplete.\n"
+                . "Missing files: {$missingList}.\n"
+                . "Please submit these files to our office as soon as possible.";
+        } else {
+
+            $message = "Dear {$customerName}, your application is complete. Thank you for submitting all required documents. We appreciate your cooperation.";
+        }
 
         // ================= SMS =================
         try {
@@ -208,7 +282,7 @@ class VisaController extends Controller
             'note' => 'required|string|max:255',
             'member' => 'required|string',
             'salaryAmount' => 'nullable|numeric',
-            'status' => 'nullable|in:Pending,Processing,Complete',
+            'status' => 'nullable|in:Pending,Processing,Complete,Cancle',
         ]);
 
         // ================= Labels =================
@@ -282,12 +356,22 @@ class VisaController extends Controller
         // ================= Message =================
         $customerName = $request->name;
 
-        $message = count($missingFields) > 0
-            ? "Dear {$customerName}, your application is incomplete. Missing: " . implode(", ", $missingFields)
-            : "Dear {$customerName}, your registration is complete ✅";
+        if (count($missingFields) > 0) {
+
+            $missingList = implode(", ", $missingFields);
+
+            $message = "Dear {$customerName}, your application is incomplete.\n"
+                . "Missing files: {$missingList}.\n"
+                . "Please submit these files to our office as soon as possible.";
+        } else {
+
+            $message = "Dear {$customerName}, your application is complete. Thank you for submitting all required documents. We appreciate your cooperation.";
+        }
 
         // ================= Store =================
         $visa = new Visa();
+
+        $this->updateTargetAchieved($visa);
 
         $visa->user_id = auth()->id();
         $visa->name = $request->name;
@@ -341,7 +425,7 @@ class VisaController extends Controller
             ->where('month', date('m'))
             ->first();
 
-        if ($target) {
+        if ($target && $visa->status !== 'Cancle') {
 
             $memberCount = is_numeric($request->member)
                 ? (int) $request->member
@@ -350,7 +434,6 @@ class VisaController extends Controller
             $target->achieved = min($target->achieved + $memberCount, $target->target);
             $target->save();
         }
-
 
 
 
@@ -403,6 +486,9 @@ class VisaController extends Controller
             $target->achieved = $newAchieved < 0 ? 0 : $newAchieved;
 
             $target->save();
+
+            $oldStatus = $visa->status;
+            $this->updateTargetAchieved($visa, $oldStatus);
         }
 
         return response()->json([
@@ -411,6 +497,45 @@ class VisaController extends Controller
         ]);
     }
 
+
+
+    function updateTargetAchieved($visa, $oldStatus = null)
+    {
+        $target = Target::where('user_id', $visa->user_id)
+            ->where('year', date('Y', strtotime($visa->date)))
+            ->where('month', date('m', strtotime($visa->date)))
+            ->first();
+
+        if (!$target) return;
+
+        $memberCount = is_numeric($visa->member)
+            ? (int) $visa->member
+            : count(explode(',', $visa->member));
+
+        // ================= LOGIC =================
+
+        // 1️⃣ New entry (no old status)
+        if ($oldStatus === null && $visa->status !== 'Cancle') {
+            $target->achieved += $memberCount;
+        }
+
+        // 2️⃣ Status changed to Cancel
+        if ($oldStatus !== 'Cancle' && $visa->status === 'Cancle') {
+            $target->achieved -= $memberCount;
+        }
+
+        // 3️⃣ Cancel → Active again
+        if ($oldStatus === 'Cancle' && $visa->status !== 'Cancle') {
+            $target->achieved += $memberCount;
+        }
+
+        // prevent negative
+        if ($target->achieved < 0) {
+            $target->achieved = 0;
+        }
+
+        $target->save();
+    }
 
 
 
@@ -480,6 +605,7 @@ class VisaController extends Controller
             DB::raw("SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending"),
             DB::raw("SUM(CASE WHEN status = 'Processing' THEN 1 ELSE 0 END) as processing"),
             DB::raw("SUM(CASE WHEN status = 'Complete' THEN 1 ELSE 0 END) as complete"),
+            DB::raw("SUM(CASE WHEN status = 'Cancle' THEN 1 ELSE 0 END) as cancle"),
             DB::raw("COUNT(*) as total")
         )->first();
 
@@ -489,6 +615,7 @@ class VisaController extends Controller
                 'pending' => $data->pending ?? 0,
                 'processing' => $data->processing ?? 0,
                 'complete' => $data->complete ?? 0,
+                'cancle' => $data->cancle ?? 0,
                 'total' => $data->total ?? 0,
             ]
         ]);
@@ -496,12 +623,12 @@ class VisaController extends Controller
 
 
     public function messageLogs($visaId)
-{
-    $logs = MessageLog::where('visa_id', $visaId)->latest()->get();
+    {
+        $logs = MessageLog::where('visa_id', $visaId)->latest()->get();
 
-    return response()->json([
-        'status' => true,
-        'data' => $logs
-    ]);
-}
+        return response()->json([
+            'status' => true,
+            'data' => $logs
+        ]);
+    }
 }

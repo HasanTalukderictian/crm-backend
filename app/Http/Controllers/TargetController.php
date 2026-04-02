@@ -51,6 +51,60 @@ public function index(Request $request)
 }
 
 
+// public function index(Request $request)
+// {
+//     $query = Target::with('user');
+
+//     // ================= Filters =================
+//     if ($request->user_id) {
+//         $query->where('user_id', $request->user_id);
+//     }
+
+//     if ($request->year) {
+//         $query->where('year', $request->year);
+//     }
+
+//     if ($request->month) {
+//         $query->where('month', $request->month);
+//     }
+
+//     $targets = $query->orderBy('id', 'desc')->paginate(10);
+
+//     // ================= Dynamic Calculation =================
+//     $targets->getCollection()->transform(function ($t) {
+
+//         // 🔥 Get visas for this team & month/year
+//         $visas = Visa::where('team_id', $t->user_id)
+//             ->whereYear('created_at', $t->year)
+//             ->whereMonth('created_at', $t->month)
+//             ->where('status', '!=', 'Cancle')
+//             ->get();
+
+//         // 🔥 Calculate achieved from member field
+//         $achieved = $visas->sum(function ($v) {
+//             return is_numeric($v->member)
+//                 ? (int) $v->member
+//                 : count(explode(',', $v->member));
+//         });
+
+//         // ================= Assign values =================
+//         $t->achieved = $achieved;
+//         $t->remaining = $t->target - $achieved;
+
+//         $t->progress = $t->target > 0
+//             ? round(($achieved / $t->target) * 100, 2)
+//             : 0;
+
+//         return $t;
+//     });
+
+//     return response()->json([
+//         'status' => true,
+//         'data' => $targets
+//     ]);
+// }
+
+
 public function store(Request $request)
 {
     $request->validate([
@@ -266,25 +320,32 @@ public function monthlySummary(Request $request)
     $year  = $request->year ?? date('Y');
     $month = $request->month ?? date('m');
 
-    $query = Target::query();
+    $user = auth()->user();
 
-    // 🔐 role check
-    if (auth()->check() && auth()->user()->role !== 'admin') {
-        $query->where('user_id', auth()->id());
+    $targetQuery = Target::where('year', $year)
+        ->where('month', $month);
+
+    // 🔐 Role-based filter
+    if ($user->role !== 'admin') {
+        $targetQuery->where('user_id', $user->id);
+    } else {
+        if ($request->user_id) {
+            $targetQuery->where('user_id', $request->user_id);
+        }
     }
 
-    // 🔹 filter by year & month
-    $query->where('year', $year)
-          ->where('month', $month);
+    $targets = $targetQuery->get();
 
-    // 🔹 totals
-    $totalTarget = (clone $query)->sum('target');
-    $totalAchieved = (clone $query)->sum('achieved');
+    // 🔹 Total Target
+    $totalTarget = $targets->sum('target');
 
-    // 🔹 remaining
+    // 🔹 Total Achieved (stored in target table)
+    $totalAchieved = $targets->sum('achieved');
+
+    // 🔹 Remaining
     $totalRemaining = $totalTarget - $totalAchieved;
 
-    // 🔹 progress %
+    // 🔹 Progress
     $progress = $totalTarget > 0
         ? round(($totalAchieved / $totalTarget) * 100, 2)
         : 0;
