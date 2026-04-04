@@ -268,10 +268,10 @@ class VisaController extends Controller
                 }
             }
 
-            $message = "Dear {$customerName}, your application is complete.\n";
+            $message = "Dear {$customerName}, your application is not complete.\n";
 
             if (!empty($completedList)) {
-                $message .= "Submitted: " . implode(", ", $completedList) . ".\n";
+                $message .= "Please submit these files to our office as soon as possible " . implode(", ", $completedList) . ".\n";
             } else {
                 // 🔥 fallback যদি কিছু select না থাকে
                 $message .= "All required documents have been received.\n";
@@ -434,10 +434,10 @@ class VisaController extends Controller
 
             $completedText = implode(", ", $completedList);
 
-            $message = "Dear {$customerName}, your application is complete.\n";
+            $message = "Dear {$customerName}, your application is not complete.\n";
 
             if (!empty($completedText)) {
-                $message .= "Submitted: {$completedText}.\n";
+                $message .= "Please submit these files to our office as soon as possible: {$completedText}.\n";
             }
 
             $message .= "Thank you for your cooperation.";
