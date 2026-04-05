@@ -117,6 +117,6 @@ Route::get('/get-team', [TeamController::class, 'index']);
 
 // Add new team member
 Route::post('/add-team', [TeamController::class, 'store']);
-
+Route::post('/update-team/{id}', [TeamController::class, 'update']);
 // Delete a team member
 Route::delete('/del-team/{id}', [TeamController::class, 'destroy']);

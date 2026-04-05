@@ -51,60 +51,6 @@ public function index(Request $request)
 }
 
 
-// public function index(Request $request)
-// {
-//     $query = Target::with('user');
-
-//     // ================= Filters =================
-//     if ($request->user_id) {
-//         $query->where('user_id', $request->user_id);
-//     }
-
-//     if ($request->year) {
-//         $query->where('year', $request->year);
-//     }
-
-//     if ($request->month) {
-//         $query->where('month', $request->month);
-//     }
-
-//     $targets = $query->orderBy('id', 'desc')->paginate(10);
-
-//     // ================= Dynamic Calculation =================
-//     $targets->getCollection()->transform(function ($t) {
-
-//         // 🔥 Get visas for this team & month/year
-//         $visas = Visa::where('team_id', $t->user_id)
-//             ->whereYear('created_at', $t->year)
-//             ->whereMonth('created_at', $t->month)
-//             ->where('status', '!=', 'Cancle')
-//             ->get();
-
-//         // 🔥 Calculate achieved from member field
-//         $achieved = $visas->sum(function ($v) {
-//             return is_numeric($v->member)
-//                 ? (int) $v->member
-//                 : count(explode(',', $v->member));
-//         });
-
-//         // ================= Assign values =================
-//         $t->achieved = $achieved;
-//         $t->remaining = $t->target - $achieved;
-
-//         $t->progress = $t->target > 0
-//             ? round(($achieved / $t->target) * 100, 2)
-//             : 0;
-
-//         return $t;
-//     });
-
-//     return response()->json([
-//         'status' => true,
-//         'data' => $targets
-//     ]);
-// }
-
-
 public function store(Request $request)
 {
     $request->validate([

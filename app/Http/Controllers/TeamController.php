@@ -36,11 +36,12 @@ class TeamController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:teams,name',
             'department_id' => 'required|exists:departments,id',
             'image' => 'nullable|image|max:2048',
+        ], [
+            'name.unique' => 'This name has already been taken',
         ]);
-
         $data = $request->only(['name', 'department_id']);
 
         if ($request->hasFile('image')) {
@@ -68,5 +69,53 @@ class TeamController extends Controller
         $team->delete();
 
         return response()->json(['status' => true, 'message' => 'Team deleted successfully']);
+    }
+
+
+    public function update(Request $request, $id)
+    {
+        // 🔒 Check role from request
+        if ($request->role !== 'admin') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorized. Only admin can update.'
+            ], 403);
+        }
+
+        $team = Team::find($id);
+
+        if (!$team) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Team member not found'
+            ], 404);
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255|unique:teams,name,' . $id,
+            'department_id' => 'required|exists:departments,id',
+            'image' => 'nullable|image|max:2048',
+        ], [
+            'name.unique' => 'This name has already been taken',
+        ]);
+
+        $team->name = $request->name;
+        $team->department_id = $request->department_id;
+
+        if ($request->hasFile('image')) {
+
+            if ($team->image && Storage::disk('public')->exists($team->image)) {
+                Storage::disk('public')->delete($team->image);
+            }
+
+            $team->image = $request->file('image')->store('team', 'public');
+        }
+
+        $team->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Team updated successfully'
+        ]);
     }
 }
