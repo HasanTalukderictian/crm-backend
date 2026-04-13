@@ -16,10 +16,10 @@ return new class extends Migration
 
             // Basic Info
             $table->string('name');
-            $table->string('phone',11);
-            $table->string('passport',20)->unique();
-            $table->string('invoice',20)->unique();
-            $table->string('member',100);
+            $table->string('phone', 11);
+            $table->string('passport', 20)->unique();
+            $table->string('invoice', 20)->unique();
+            $table->string('member', 100);
 
             // Foreign Keys
             $table->foreignId('country_id')
@@ -33,14 +33,15 @@ return new class extends Migration
             $table->date('date')->nullable();
 
             // Financial
-            $table->decimal('asset_valuation',12,2)->nullable();
-            $table->decimal('salary_amount',12,2)->nullable();
-
+            $table->decimal('asset_valuation', 12, 2)->nullable();
+            $table->decimal('salary_amount', 12, 2)->nullable();
+            $table->string('profession_name')->nullable();
+            $table->string('missing_file')->nullable();
             // Documents
             $table->string('image')->nullable();
             $table->string('bank_certificate')->nullable();
-             $table->string('note')->nullable();
-           $table->integer('remainder_days')->nullable();
+            $table->string('note')->nullable();
+            $table->integer('remainder_days')->nullable();
             $table->string('nid_file')->nullable();
             $table->string('birth_certificate')->nullable();
             $table->string('marriage_certificate')->nullable();

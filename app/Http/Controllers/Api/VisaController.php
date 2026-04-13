@@ -59,252 +59,197 @@ class VisaController extends Controller
     }
 
 
-    public function update(Request $request, $id)
-    {
-        $visa = Visa::find($id);
+      public function update(Request $request, $id)
+{
+    $visa = Visa::find($id);
 
-        if (!$visa) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Visa record not found'
-            ], 404);
-        }
+    if (!$visa) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Visa record not found'
+        ], 404);
+    }
 
-        if (!auth()->check()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Unauthenticated'
-            ], 401);
-        }
+    // ================= Validation =================
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'phone' => 'required|digits:11',
+        'member' => 'required|string',
+        'passport' => 'required|min:6|max:10',
+        'invoice' => 'required|string|max:255|unique:visas,invoice,' . $id,
+        'country' => 'required|exists:countries,id',
+        'salesPerson' => 'required|exists:teams,id',
+        'applicantType' => 'required|in:job,business,others',
+        'status' => 'nullable|in:Pending,Processing,Complete,Cancle',
+        'salaryAmount' => 'nullable|numeric',
+        'remainder_days' => 'nullable|integer|min:0',
+        'note' => 'nullable|string|max:255',
+        'profession_name' => 'nullable|string|max:255',
+        'missing_file' => 'nullable|string|max:255',
+    ]);
 
-        if (auth()->user()->role !== 'admin' && $visa->user_id !== auth()->id()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Unauthorized access'
-            ], 403);
-        }
+    // ================= Labels =================
+    $fieldLabels = [
+        'image' => 'Customer Image',
+        'bankCertificate' => 'Bank Certificate',
+        'nidFile' => 'NID Copy',
+        'assetValuation' => 'Asset Valuation',
+        'birthCertificate' => 'Birth Certificate',
+        'marriageCertificate' => 'Marriage Certificate',
+        'nocLetter' => 'NOC Letter',
+        'officeId' => 'Office ID',
+        'salarySlips' => 'Salary Slips',
+        'governmentOrder' => 'Government Order',
+        'visitingCard' => 'Visiting Card',
+        'blankOfficePad' => 'Blank Office Pad',
+        'renewalTradeLicense' => 'Renewal Trade License',
+        'memorandumLimited' => 'Memorandum Limited',
+    ];
 
-        // ================= Validation =================
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'required|digits:11',
-            'member' => 'required|string',
-            'passport' => 'required|min:6|max:9',
-            'invoice' => 'required|string|max:255|unique:visas,invoice,' . $id,
-            'country' => 'required|exists:countries,id',
-            'salesPerson' => 'required|exists:teams,id',
-            'applicantType' => 'required|in:job,business',
-            'status' => 'nullable|in:Pending,Processing,Complete,Cancle',
-            'salaryAmount' => 'nullable|numeric',
-            'remainder_days' => 'nullable|integer|min:0',
-            'note' => 'nullable|string|max:255',
-        ]);
+    $missingFields = [];
 
-        // ================= Labels =================
-        $fieldLabels = [
-            'image' => 'Customer Image',
-            'bankCertificate' => 'Bank Certificate',
-            'nidFile' => 'NID Copy',
-            'assetValuation' => 'Asset Valuation',
-            'birthCertificate' => 'Birth Certificate',
-            'marriageCertificate' => 'Marriage Certificate',
-            'nocLetter' => 'NOC Letter',
-            'officeId' => 'Office ID',
-            'salarySlips' => 'Salary Slips',
-            'governmentOrder' => 'Government Order',
-            'visitingCard' => 'Visiting Card',
-            'blankOfficePad' => 'Blank Office Pad',
-            'renewalTradeLicense' => 'Renewal Trade License',
-            'memorandumLimited' => 'Memorandum Limited',
-        ];
+    // ================= Applicant Type =================
+    if ($request->applicantType === "job") {
 
-        $missingFields = [];
+        $jobFiles = ['nocLetter','officeId','salarySlips','governmentOrder','visitingCard'];
 
-        // ================= Applicant Type Check =================
-        if ($request->applicantType === "job") {
-
-            $jobFiles = ['nocLetter', 'officeId', 'salarySlips', 'governmentOrder', 'visitingCard'];
-
-            foreach ($jobFiles as $file) {
-                if (!$request->hasFile($file) && empty($visa->$file)) {
-                    $missingFields[] = $fieldLabels[$file];
-                }
-            }
-
-            if (!$request->salaryAmount) {
-                $missingFields[] = 'Salary Amount';
-            }
-        } elseif ($request->applicantType === "business") {
-
-            $businessFiles = ['blankOfficePad', 'renewalTradeLicense', 'memorandumLimited'];
-
-            foreach ($businessFiles as $file) {
-                if (!$request->hasFile($file) && empty($visa->$file)) {
-                    $missingFields[] = $fieldLabels[$file];
-                }
+        foreach ($jobFiles as $file) {
+            if (!$request->hasFile($file) && empty($visa->$file)) {
+                $missingFields[] = $fieldLabels[$file];
             }
         }
 
-        // ================= Common Files =================
-        $commonFiles = [
-            'image',
-            'bankCertificate',
-            'nidFile',
-            'assetValuation',
-            'birthCertificate',
-            'marriageCertificate'
-        ];
+        if (!$request->salaryAmount) {
+            $missingFields[] = 'Salary Amount';
+        }
 
-        foreach ($commonFiles as $field) {
+    } elseif ($request->applicantType === "business") {
 
-            if ($field === 'assetValuation') {
-                if (empty($request->$field) && empty($visa->$field)) {
-                    $missingFields[] = $fieldLabels[$field];
-                }
-            } else {
-                if (!$request->hasFile($field) && empty($visa->$field)) {
-                    $missingFields[] = $fieldLabels[$field];
-                }
+        $businessFiles = ['blankOfficePad','renewalTradeLicense','memorandumLimited'];
+
+        foreach ($businessFiles as $file) {
+            if (!$request->hasFile($file) && empty($visa->$file)) {
+                $missingFields[] = $fieldLabels[$file];
+            }
+        }
+    }
+
+    // ================= Common =================
+    $commonFiles = ['image','bankCertificate','nidFile','assetValuation','birthCertificate','marriageCertificate'];
+
+    foreach ($commonFiles as $field) {
+        if ($field === 'assetValuation') {
+            if (empty($request->$field) && empty($visa->$field)) {
+                $missingFields[] = $fieldLabels[$field];
+            }
+        } else {
+            if (!$request->hasFile($field) && empty($visa->$field)) {
+                $missingFields[] = $fieldLabels[$field];
+            }
+        }
+    }
+
+    // ================= FILE CHECKS =================
+    $fileChecks = json_decode($request->fileChecks, true) ?? [];
+
+    // ================= MESSAGE =================
+    $customerName = $request->name;
+    $message = "";
+
+    if ($request->applicantType === "others") {
+
+        $message = "Dear {$customerName}, your application is incomplete.\n";
+
+        // ✅ checkbox selected files
+        $selectedLabels = [];
+        foreach ($fileChecks as $key => $value) {
+            if (!empty($value) && isset($fieldLabels[$key])) {
+                $selectedLabels[] = $fieldLabels[$key];
             }
         }
 
-        // ================= Update Basic Info =================
-        $visa->name = $request->name;
-        $visa->phone = $request->phone;
-        $visa->member = $request->member;
-        $visa->passport = $request->passport;
-        $visa->invoice = $request->invoice;
-        $visa->applicant_type = $request->applicantType;
-        $visa->country_id = $request->country;
-        $visa->team_id = $request->salesPerson;
-
-        $visa->date = $request->date
-            ? Carbon::parse($request->date)->format('Y-m-d')
-            : null;
-        $visa->asset_valuation = $request->assetValuation;
-        $visa->salary_amount = $request->salaryAmount;
-        $visa->remainder_days = $request->remainder_days;
-        $visa->note = $request->note;
-        $visa->status = $request->status ?? $visa->status;
-
-        // ================= File Upload =================
-        $files = [
-            'image',
-            'bankCertificate',
-            'nidFile',
-            'birthCertificate',
-            'marriageCertificate',
-            'nocLetter',
-            'officeId',
-            'salarySlips',
-            'governmentOrder',
-            'visitingCard',
-            'blankOfficePad',
-            'renewalTradeLicense',
-            'memorandumLimited'
-        ];
-
-        foreach ($files as $file) {
-            if ($request->hasFile($file)) {
-                $path = $request->file($file)->store('visa', 'public');
-                $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $file));
-                $visa->$column = asset('storage/' . $path);
-            }
+        if (!empty($selectedLabels)) {
+            $message .= "Missing files: " . implode(", ", $selectedLabels) . "\n";
         }
 
-        $visa->save();
-
-        $oldStatus = $visa->status;
-        $this->updateTargetAchieved($visa, $oldStatus);
-
-        // ================= TARGET UPDATE =================
-        $target = Target::where('user_id', auth()->id())
-            ->where('year', date('Y'))
-            ->where('month', date('m'))
-            ->first();
-
-        if ($target && $visa->status !== 'Cancle') {
-
-            $memberCount = is_numeric($request->member)
-                ? (int) $request->member
-                : count(explode(',', $request->member));
-
-            $target->achieved = min($target->achieved + $memberCount, $target->target);
-            $target->save();
+        // ✅ custom input
+        if (!empty($request->missing_file)) {
+            $message .= "Additional: " . $request->missing_file . "\n";
         }
 
+        if (!empty($request->profession_name)) {
+            $message .= "Profession: " . $request->profession_name . "\n";
+        }
 
-        // ================= MESSAGE =================
-        $customerName = $request->name;
+        $message .= "Please submit these files to our office as soon as possible.";
 
-        // 🔥 ADD THIS
-        $fileChecks = json_decode($request->fileChecks, true) ?? [];
+    } else {
 
-        if (!empty($filteredMissing)) {
-
-            // 🔥 only checkbox selected missing
-            $filteredMissing = [];
-
-            foreach ($missingFields as $fieldLabel) {
-
-                $key = array_search($fieldLabel, $fieldLabels);
-
-                if ($key && !empty($fileChecks[$key])) {
-                    $filteredMissing[] = $fieldLabel;
-                }
-            }
+        if (!empty($missingFields)) {
 
             $message = "Dear {$customerName}, your application is incomplete.\n";
-
-            if (!empty($filteredMissing)) {
-                $message .= "Missing files: " . implode(", ", $filteredMissing) . ".\n";
-            }
-
+            $message .= "Missing files: " . implode(", ", $missingFields) . ".\n";
             $message .= "Please submit these files to our office as soon as possible.";
+
         } else {
 
-            // 🔥 only checkbox selected completed
-            $completedList = [];
-
-            foreach ($fieldLabels as $key => $label) {
-                if (!empty($fileChecks[$key])) {
-                    $completedList[] = $label;
-                }
-            }
-
-            $message = "Dear {$customerName}, your application is not complete.\n";
-
-            if (!empty($completedList)) {
-                $message .= "Please submit these files to our office as soon as possible " . implode(", ", $completedList) . ".\n";
-            } else {
-                // 🔥 fallback যদি কিছু select না থাকে
-                $message .= "All required documents have been received.\n";
-            }
-
+            $message = "Dear {$customerName}, your application is complete.\n";
             $message .= "Thank you for your cooperation.";
         }
-
-        // ================= SMS =================
-        try {
-            $phone = '88' . $request->phone;
-            SendSMSController::sendSms($phone, $message);
-        } catch (\Exception $e) {
-            Log::error('SMS Failed: ' . $e->getMessage());
-        }
-
-        MessageLog::create([
-            'visa_id' => $visa->id,
-            'phone' => $request->phone,
-            'message' => $message,
-            'type' => 'sms'
-        ]);
-
-        return response()->json([
-            'status' => true,
-            'message' => $message,
-            'data' => $visa
-        ]);
     }
+
+    // ================= UPDATE DATA =================
+    $visa->update([
+        'name' => $request->name,
+        'phone' => $request->phone,
+        'member' => $request->member,
+        'passport' => $request->passport,
+        'invoice' => $request->invoice,
+        'applicant_type' => $request->applicantType,
+        'country_id' => $request->country,
+        'team_id' => $request->salesPerson,
+        'date' => $request->date ? Carbon::parse($request->date)->format('Y-m-d') : null,
+        'asset_valuation' => $request->assetValuation,
+        'salary_amount' => $request->salaryAmount,
+        'remainder_days' => $request->remainder_days,
+        'note' => $request->note,
+        'status' => $request->status ?? $visa->status,
+        'profession_name' => $request->profession_name,
+        'missing_file' => $request->missing_file,
+    ]);
+
+    // ================= FILE UPLOAD =================
+    foreach (array_keys($fieldLabels) as $file) {
+        if ($request->hasFile($file)) {
+            $path = $request->file($file)->store('visa', 'public');
+            $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $file));
+            $visa->$column = asset('storage/' . $path);
+        }
+    }
+
+    $visa->save();
+
+    // ================= SMS =================
+    try {
+        $phone = '88' . $request->phone;
+        SendSMSController::sendSms($phone, $message);
+    } catch (\Exception $e) {
+        Log::error('SMS Failed: ' . $e->getMessage());
+    }
+
+    MessageLog::create([
+        'visa_id' => $visa->id,
+        'phone' => $request->phone,
+        'message' => $message,
+        'type' => 'sms'
+    ]);
+
+    return response()->json([
+        'status' => true,
+        'message' => $message,
+        'data' => $visa
+    ]);
+}
 
 
     public function store(Request $request)
@@ -317,12 +262,14 @@ class VisaController extends Controller
             'invoice' => 'required|string|max:255|unique:visas,invoice',
             'country' => 'required|exists:countries,id',
             'salesPerson' => 'required|exists:teams,id',
-            'applicantType' => 'required|in:job,business',
+            'applicantType' => 'required|in:job,business,others',
             'remainder_days' => 'required|integer|min:0',
             'note' => 'required|string|max:255',
             'member' => 'required|string',
             'salaryAmount' => 'nullable|numeric',
             'status' => 'nullable|in:Pending,Processing,Complete,Cancle',
+            'profession_name' => 'nullable|string|max:255',
+            'missing_file' => 'nullable|string|max:255',
         ]);
 
         // ================= Labels =================
@@ -393,61 +340,56 @@ class VisaController extends Controller
             }
         }
 
-
-
-
-        // ================= Message =================
-        $customerName = $request->name;
-
+        // ================= FILE CHECKS =================
         $fileChecks = json_decode($request->fileChecks, true) ?? [];
 
-        if (!empty($filteredMissing)) {
+        // ================= MESSAGE BUILD =================
+        $customerName = $request->name;
+        $message = "";
 
-            // 🔥 ONLY SELECTED missing fields
-            $filteredMissing = [];
-
-            foreach ($missingFields as $fieldLabel) {
-
-                // reverse match (label → key)
-                $key = array_search($fieldLabel, $fieldLabels);
-
-                if ($key && !empty($fileChecks[$key])) {
-                    $filteredMissing[] = $fieldLabel;
-                }
-            }
-
-            $missingList = implode(", ", $filteredMissing);
+        // 🔥 যদি others হয় → custom message only
+        if ($request->applicantType === "others") {
 
             $message = "Dear {$customerName}, your application is incomplete.\n";
 
-            if (!empty($missingList)) {
-                $message .= "Missing files: {$missingList}.\n";
+            // ✅ checkbox selected files
+            $selectedLabels = [];
+            foreach ($fileChecks as $key => $value) {
+                if (!empty($value) && isset($fieldLabels[$key])) {
+                    $selectedLabels[] = $fieldLabels[$key];
+                }
             }
+
+            if (!empty($selectedLabels)) {
+                $message .= "Selected Missing Files: " . implode(", ", $selectedLabels) . "\n";
+            }
+
+            // ✅ custom missing file input
+            if (!empty($request->missing_file)) {
+                $message .= "Custom Missing File: " . $request->missing_file . "\n";
+            }
+
+
 
             $message .= "Please submit these files to our office as soon as possible.";
         } else {
 
-            // 🔥 ONLY SELECTED completed fields
-            $completedList = [];
+            // 🔥 default logic (job + business)
+            if (!empty($missingFields)) {
 
-            foreach ($fieldLabels as $key => $label) {
-                if (!empty($fileChecks[$key])) {
-                    $completedList[] = $label;
-                }
+                $missingList = implode(", ", $missingFields);
+
+                $message = "Dear {$customerName}, your application is incomplete.\n";
+                $message .= "Missing files: {$missingList}.\n";
+                $message .= "Please submit these files to our office as soon as possible.";
+            } else {
+
+                $message = "Dear {$customerName}, your application is not complete.\n";
+                $message .= "Thank you for your cooperation.";
             }
-
-            $completedText = implode(", ", $completedList);
-
-            $message = "Dear {$customerName}, your application is not complete.\n";
-
-            if (!empty($completedText)) {
-                $message .= "Please submit these files to our office as soon as possible: {$completedText}.\n";
-            }
-
-            $message .= "Thank you for your cooperation.";
         }
 
-        // ================= Store =================
+        // ================= STORE =================
         $visa = new Visa();
 
         $this->updateTargetAchieved($visa);
@@ -467,26 +409,28 @@ class VisaController extends Controller
         $visa->date = $request->date
             ? Carbon::parse($request->date)->format('Y-m-d')
             : null;
+
         $visa->asset_valuation = $request->assetValuation;
         $visa->salary_amount = $request->salaryAmount;
         $visa->status = $request->status ?? 'Pending';
 
-        // ================= File Upload =================
-        $files = [
-            'image',
-            'bankCertificate',
-            'nidFile',
-            'birthCertificate',
-            'marriageCertificate',
-            'nocLetter',
-            'officeId',
-            'salarySlips',
-            'governmentOrder',
-            'visitingCard',
-            'blankOfficePad',
-            'renewalTradeLicense',
-            'memorandumLimited'
-        ];
+        // ================= OTHERS =================
+        if ($request->applicantType === "others") {
+            if (!empty($request->profession_name)) {
+                $message .= "\nProfession Name: " . $request->profession_name;
+            }
+
+            if (!empty($request->missing_file)) {
+                $message .= "\nMissing File: " . $request->missing_file;
+            }
+        }
+
+        // save others fields
+        $visa->profession_name = $request->profession_name;
+        $visa->missing_file = $request->missing_file;
+
+        // ================= FILE UPLOAD =================
+        $files = array_keys($fieldLabels);
 
         foreach ($files as $file) {
             if ($request->hasFile($file)) {
@@ -517,8 +461,6 @@ class VisaController extends Controller
             $target->save();
         }
 
-
-
         // ================= SMS =================
         try {
             $phone = '88' . $request->phone;
@@ -534,13 +476,15 @@ class VisaController extends Controller
             'type' => 'sms'
         ]);
 
-        // ================= Response =================
         return response()->json([
             'status' => true,
             'message' => $message,
             'data' => $visa
         ]);
     }
+
+
+
 
     public function destroy($id)
     {
@@ -575,7 +519,7 @@ class VisaController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Deleted Successfully'
+            'message' => ' Visa Delete  Successfully'
         ]);
     }
 
@@ -715,29 +659,28 @@ class VisaController extends Controller
     }
 
 
-    public function topSalesPersons()
+
+    public function topSalesPersons(Request $request)
     {
+        $month = $request->month ?? date('m');
+        $year = $request->year ?? date('Y');
+
         $query = Visa::query();
 
-        // 🔐 Role-based filter
         if (auth()->user()->role !== 'admin') {
             $query->where('user_id', auth()->id());
         }
 
         $data = $query
-            ->select(
-                'team_id',
-                DB::raw('COUNT(*) as total_visas')
-            )
-            ->whereYear('date', date('Y'))
-            ->whereMonth('date', date('m'))
+            ->select('team_id', DB::raw('COUNT(*) as total_visas'))
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
             ->where('status', '!=', 'Cancle')
             ->groupBy('team_id')
             ->orderByDesc('total_visas')
             ->limit(5)
             ->get();
 
-        // optional: team relation manually load (safer in aggregate query)
         $data->load('team');
 
         return response()->json([

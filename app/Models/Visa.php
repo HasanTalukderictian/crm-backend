@@ -43,6 +43,8 @@ class Visa extends Model
         'blank_office_pad',
         'renewal_trade_license',
         'memorandum_limited',
+        'profession_name',
+        'missing_file'
     ];
 
     public function country()
