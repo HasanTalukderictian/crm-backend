@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\SendSMSController;
 use App\Models\MessageLog;
 use App\Models\Target;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -176,7 +177,10 @@ class VisaController extends Controller
         $visa->applicant_type = $request->applicantType;
         $visa->country_id = $request->country;
         $visa->team_id = $request->salesPerson;
-        $visa->date = $request->date;
+
+        $visa->date = $request->date
+            ? Carbon::parse($request->date)->format('Y-m-d')
+            : null;
         $visa->asset_valuation = $request->assetValuation;
         $visa->salary_amount = $request->salaryAmount;
         $visa->remainder_days = $request->remainder_days;
@@ -459,7 +463,10 @@ class VisaController extends Controller
         $visa->team_id = $request->salesPerson;
         $visa->member = $request->member;
         $visa->remainder_days = $request->remainder_days;
-        $visa->date = $request->date;
+
+        $visa->date = $request->date
+            ? Carbon::parse($request->date)->format('Y-m-d')
+            : null;
         $visa->asset_valuation = $request->assetValuation;
         $visa->salary_amount = $request->salaryAmount;
         $visa->status = $request->status ?? 'Pending';
@@ -704,6 +711,38 @@ class VisaController extends Controller
         return response()->json([
             'status' => true,
             'data' => $logs
+        ]);
+    }
+
+
+    public function topSalesPersons()
+    {
+        $query = Visa::query();
+
+        // 🔐 Role-based filter
+        if (auth()->user()->role !== 'admin') {
+            $query->where('user_id', auth()->id());
+        }
+
+        $data = $query
+            ->select(
+                'team_id',
+                DB::raw('COUNT(*) as total_visas')
+            )
+            ->whereYear('date', date('Y'))
+            ->whereMonth('date', date('m'))
+            ->where('status', '!=', 'Cancle')
+            ->groupBy('team_id')
+            ->orderByDesc('total_visas')
+            ->limit(5)
+            ->get();
+
+        // optional: team relation manually load (safer in aggregate query)
+        $data->load('team');
+
+        return response()->json([
+            'status' => true,
+            'data' => $data
         ]);
     }
 }
