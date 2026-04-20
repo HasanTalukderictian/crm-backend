@@ -15,6 +15,7 @@ class Target extends Model
         'year',
         'month'
     ];
+     public $timestamps = true;
 
     public function user()
     {

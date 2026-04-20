@@ -152,51 +152,48 @@ class VisaController extends Controller
     // ================= FILE CHECKS =================
     $fileChecks = json_decode($request->fileChecks, true) ?? [];
 
-    // ================= MESSAGE =================
+
+
+
+    // ================= MESSAGE GENERATION =================
     $customerName = $request->name;
     $message = "";
 
+    $currentMissing = [];
+
     if ($request->applicantType === "others") {
-
-        $message = "Dear {$customerName}, your application is incomplete.\n";
-
-        // ✅ checkbox selected files
-        $selectedLabels = [];
+        // ✅ checkbox selected files check
         foreach ($fileChecks as $key => $value) {
             if (!empty($value) && isset($fieldLabels[$key])) {
-                $selectedLabels[] = $fieldLabels[$key];
+                $currentMissing[] = $fieldLabels[$key];
             }
         }
 
-        if (!empty($selectedLabels)) {
-            $message .= "Missing files: " . implode(", ", $selectedLabels) . "\n";
-        }
-
-        // ✅ custom input
+        // ✅ custom input check
         if (!empty($request->missing_file)) {
-            $message .= "Additional: " . $request->missing_file . "\n";
+            $currentMissing[] = $request->missing_file;
         }
+    } else {
+        // job অথবা business এর জন্য $missingFields ব্যবহার হবে
+        $currentMissing = $missingFields;
+    }
 
-        if (!empty($request->profession_name)) {
+    // চূড়ান্ত মেসেজ কন্ডিশন
+    if (!empty($currentMissing)) {
+        $message = "Dear {$customerName}, your application is incomplete.\n";
+        $message .= "Missing files: " . implode(", ", $currentMissing) . ".\n";
+
+        if ($request->applicantType === "others" && !empty($request->profession_name)) {
             $message .= "Profession: " . $request->profession_name . "\n";
         }
 
         $message .= "Please submit these files to our office as soon as possible.";
-
     } else {
-
-        if (!empty($missingFields)) {
-
-            $message = "Dear {$customerName}, your application is incomplete.\n";
-            $message .= "Missing files: " . implode(", ", $missingFields) . ".\n";
-            $message .= "Please submit these files to our office as soon as possible.";
-
-        } else {
-
-            $message = "Dear {$customerName}, your application is complete.\n";
-            $message .= "Thank you for your cooperation.";
-        }
+        $message = "Dear {$customerName}, your application is complete.\n";
+        $message .= "Thank you for your cooperation.";
     }
+
+
 
     // ================= UPDATE DATA =================
     $visa->update([
@@ -250,6 +247,7 @@ class VisaController extends Controller
         'data' => $visa
     ]);
 }
+
 
 
     public function store(Request $request)
