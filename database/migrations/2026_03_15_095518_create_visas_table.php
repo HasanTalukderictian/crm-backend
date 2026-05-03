@@ -21,10 +21,10 @@ return new class extends Migration
             $table->string('invoice', 20)->unique();
             $table->string('member', 100);
 
-            // Foreign Keys
-            $table->foreignId('country_id')
-                ->constrained('countries')
-                ->cascadeOnDelete();
+            // // Foreign Keys
+            // $table->foreignId('country_id')
+            //     ->constrained('countries')
+            //     ->cascadeOnDelete();
 
             $table->foreignId('team_id')
                 ->constrained('teams')

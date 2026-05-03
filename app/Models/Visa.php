@@ -9,15 +9,15 @@ class Visa extends Model
 {
     use HasFactory;
 
-     protected $fillable = [
+    protected $fillable = [
         'name',
         'phone',
         'passport',
-        'country',
+        'country_id', // 🔥 FIXED (country -> country_id)
         'invoice',
-          'user_id',
-          'status',
-          'note',
+        'user_id',
+        'status',
+        'note',
         'sales_person',
         'remainder_days',
         'date',
@@ -47,6 +47,12 @@ class Visa extends Model
         'missing_file'
     ];
 
+    // 🔥 IMPORTANT: JSON cast for multiple countries
+    protected $casts = [
+        'country_id' => 'array',
+    ];
+
+    // relation (single country relation এখন আর use করা লাগবে না JSON হলে)
     public function country()
     {
         return $this->belongsTo(Country::class);
@@ -58,13 +64,12 @@ class Visa extends Model
     }
 
     public function user()
-{
-    return $this->belongsTo(User::class);
-}
+    {
+        return $this->belongsTo(User::class);
+    }
 
-
-public function messageLogs()
-{
-    return $this->hasMany(MessageLog::class);
-}
+    public function messageLogs()
+    {
+        return $this->hasMany(MessageLog::class);
+    }
 }

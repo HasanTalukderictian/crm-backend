@@ -89,13 +89,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/visa-view/{id}', [VisaController::class, 'show']);
     Route::post('/visa-update/{id}', [VisaController::class,'update']);
     Route::get('/visa/{id}/messages', [VisaController::class, 'messageLogs']);
-
+     Route::get('/visa-view/{id}', [VisaController::class, 'show']);
     Route::get('/monthly-visa-stats', [VisaController::class, 'monthlyVisaStats']);
 
         Route::get('/monthly-visa-status-summary', [VisaController::class, 'monthlyVisaStatusSummary']);
          Route::get('/get-topsales', [VisaController::class, 'topSalesPersons']);
 
 });
+
 
 
 
