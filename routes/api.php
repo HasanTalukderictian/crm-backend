@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VisaController;
 use Illuminate\Http\Request;
@@ -47,17 +48,16 @@ Route::post('/add-header', [UserInfoController::class, 'store']);
 Route::post('/edit-userInfo/{id}', [UserInfoController::class, 'update']);
 
 
-Route::middleware('auth:sanctum')->group(function(){
+Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/users',[UserController::class,'index']);
+    Route::get('/users', [UserController::class, 'index']);
     Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword']);
 
-    Route::post('/create-user',[UserController::class,'store']);
+    Route::post('/create-user', [UserController::class, 'store']);
 
-    Route::post('/users/{id}/toggle-status',[UserController::class,'toggleStatus']);
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
 
     Route::get('/me', [UserController::class, 'me']);
-
 });
 
 
@@ -77,7 +77,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/achieved-summary', [TargetController::class, 'achievedSummary']);
 
     Route::get('/monthly-summary', [TargetController::class, 'monthlySummary']);
-
 });
 
 
@@ -87,15 +86,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/add-reviews', [VisaController::class, 'store']);
     Route::delete('/del-reviews/{id}', [VisaController::class, 'destroy']);
     Route::get('/visa-view/{id}', [VisaController::class, 'show']);
-    Route::post('/visa-update/{id}', [VisaController::class,'update']);
+    Route::post('/visa-update/{id}', [VisaController::class, 'update']);
     Route::get('/visa/{id}/messages', [VisaController::class, 'messageLogs']);
-     Route::get('/visa-view/{id}', [VisaController::class, 'show']);
+    Route::get('/visa-view/{id}', [VisaController::class, 'show']);
     Route::get('/monthly-visa-stats', [VisaController::class, 'monthlyVisaStats']);
 
-        Route::get('/monthly-visa-status-summary', [VisaController::class, 'monthlyVisaStatusSummary']);
-         Route::get('/get-topsales', [VisaController::class, 'topSalesPersons']);
+    Route::get('/monthly-visa-status-summary', [VisaController::class, 'monthlyVisaStatusSummary']);
+    Route::get('/get-topsales', [VisaController::class, 'topSalesPersons']);
+
+    Route::get('/visa/invoice/{invoice}', [VisaController::class, 'getByInvoice']);
 
 });
+
+
 
 
 
@@ -107,7 +110,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
-
 });
 
 
@@ -123,3 +125,11 @@ Route::post('/add-team', [TeamController::class, 'store']);
 Route::post('/update-team/{id}', [TeamController::class, 'update']);
 // Delete a team member
 Route::delete('/del-team/{id}', [TeamController::class, 'destroy']);
+
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/refund-list', [RefundController::class, 'index']);
+    Route::post('/refund/store', [RefundController::class, 'store']);
+    Route::post('/refund/update-status/{id}', [RefundController::class, 'updateStatus']);
+});
