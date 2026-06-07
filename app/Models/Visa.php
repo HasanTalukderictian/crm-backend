@@ -17,6 +17,7 @@ class Visa extends Model
         'invoice',
         'user_id',
         'status',
+         'notary_status',
         'note',
         'sales_person',
         'remainder_days',

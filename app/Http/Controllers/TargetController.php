@@ -222,53 +222,49 @@ class TargetController extends Controller
 
 
 
-    public function achievedSummary(Request $request)
-    {
-        // 🔹 Date parse with timezone (BD)
-        $date = $request->date
-            ? Carbon::parse($request->date, 'Asia/Dhaka')
-            : Carbon::now('Asia/Dhaka');
+   public function achievedSummary(Request $request)
+{
+    // 🔹 রিকোয়েস্ট থেকে তারিখ নেওয়া, না থাকলে বর্তমান সময় (BD Timezone)
+    $dateInput = $request->date
+        ? Carbon::parse($request->date, 'Asia/Dhaka')
+        : Carbon::now('Asia/Dhaka');
 
-        $year = $date->year;
-        $month = $date->month;
+    $targetDate = $dateInput->toDateString(); // Y-m-d ফরম্যাট (যেমন: "2026-05-23")
+    $year = $dateInput->year;
+    $month = $dateInput->month;
 
-        $query = Target::query();
+    $query = Target::query();
 
-        // 🔐 role check
-        if (auth()->check() && auth()->user()->role !== 'admin') {
-            $query->where('user_id', auth()->id());
-        }
-
-        // 🔹 Today range (BD timezone safe)
-        $todayStart = $date->copy()->startOfDay()->timezone('UTC');
-        $todayEnd   = $date->copy()->endOfDay()->timezone('UTC');
-
-        // 🔹 Today achieved
-        $todayAchieved = (clone $query)
-            ->whereBetween('created_at', [$todayStart, $todayEnd])
-            ->sum('achieved');
-
-        // 🔹 Monthly achieved (timezone safe)
-        $monthStart = $date->copy()->startOfMonth()->timezone('UTC');
-        $monthEnd   = $date->copy()->endOfMonth()->timezone('UTC');
-
-        $monthlyAchieved = (clone $query)
-            ->whereBetween('created_at', [$monthStart, $monthEnd])
-            ->sum('achieved');
-
-        // 🔹 Total achieved
-        $totalAchieved = (clone $query)->sum('achieved');
-
-        return response()->json([
-            'status' => true,
-            'data' => [
-                'date' => $date->toDateString(),
-                'today_achieved' => (int) $todayAchieved,
-                'monthly_achieved' => (int) $monthlyAchieved,
-                'total_achieved' => (int) $totalAchieved,
-            ]
-        ]);
+    // 🔐 রোল চেক
+    if (auth()->check() && auth()->user()->role !== 'admin') {
+        $query->where('user_id', auth()->id());
     }
+
+    // 🔹 ১. Today achieved (সরাসরি BD টাইমজোনে তারিখ ম্যাচ করা)
+    // ডাটাবেজের UTC সময়কে Asia/Dhaka তে রূপান্তর করে আজকের তারিখের সাথে মেলানো হচ্ছে
+    $todayAchieved = (clone $query)
+        ->whereRaw("DATE(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$targetDate])
+        ->sum('achieved');
+
+    // 🔹 ২. Monthly achieved (সরাসরি মাস এবং বছর ফিল্টার)
+    $monthlyAchieved = (clone $query)
+        ->whereRaw("YEAR(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$year])
+        ->whereRaw("MONTH(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$month])
+        ->sum('achieved');
+
+    // 🔹 ৩. Total achieved
+    $totalAchieved = (clone $query)->sum('achieved');
+
+    return response()->json([
+        'status' => true,
+        'data' => [
+            'date'             => $targetDate,
+            'today_achieved'   => (int) $todayAchieved,
+            'monthly_achieved' => (int) $monthlyAchieved,
+            'total_achieved'   => (int) $totalAchieved,
+        ]
+    ]);
+}
 
 
     public function monthlySummary(Request $request)
