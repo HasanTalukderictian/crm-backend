@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\UserCreatedMail;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class UserController extends Controller
 {
@@ -15,7 +18,7 @@ class UserController extends Controller
     // =========================
     public function index()
     {
-        $users = User::select('id','name','email','role','active')->latest()->get();
+        $users = User::select('id', 'name', 'email', 'role', 'active')->latest()->get();
 
         return response()->json([
             'status' => true,
@@ -24,37 +27,66 @@ class UserController extends Controller
     }
 
     // =========================
-// Reset User Password
-// =========================
-public function resetPassword(Request $request, $id)
-{
-    $request->validate([
-        'password' => 'required|min:6|confirmed'
-    ]);
+    // Reset User Password
+    // =========================
+    public function resetPassword(Request $request, $id)
+    {
+        $request->validate([
+            'password' => 'required|min:6|confirmed'
+        ]);
 
-    $user = User::findOrFail($id);
+        $user = User::findOrFail($id);
 
-    $user->password = Hash::make($request->password);
-    $user->save();
+        $user->password = Hash::make($request->password);
+        $user->save();
 
-    return response()->json([
-        'status' => true,
-        'message' => 'Password reset successfully'
-    ]);
-}
+        return response()->json([
+            'status' => true,
+            'message' => 'Password reset successfully'
+        ]);
+    }
 
     // =========================
     // Create User (Modal Form)
     // =========================
-    public function store(Request $request)
-    {
+    // public function store(Request $request)
+    // {
 
-        $request->validate([
-            'name' => 'required|string|max:100',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
-            'role' => 'required'
-        ]);
+    //     $request->validate([
+    //         'name' => 'required|string|max:100',
+    //         'email' => 'required|email|unique:users,email',
+    //         'password' => 'required|min:6',
+    //         'role' => 'required'
+    //     ]);
+
+    //     $user = User::create([
+    //         'name' => $request->name,
+    //         'email' => $request->email,
+    //         'password' => Hash::make($request->password),
+    //         'role' => $request->role,
+    //         'active' => true
+    //     ]);
+
+    //     return response()->json([
+    //         'status' => true,
+    //         'message' => 'User created successfully',
+    //         'user' => $user
+    //     ]);
+    // }
+
+
+ public function store(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:100',
+        'email' => 'required|email|unique:users,email',
+        'password' => 'required|min:6',
+        'role' => 'required'
+    ]);
+
+    try {
+
+        $plainPassword = $request->password;
 
         $user = User::create([
             'name' => $request->name,
@@ -64,12 +96,35 @@ public function resetPassword(Request $request, $id)
             'active' => true
         ]);
 
+        // EMAIL SEND (safe)
+        $mailError = null;
+
+        try {
+            Mail::to($user->email)->send(
+                new UserCreatedMail($user, $plainPassword)
+            );
+        } catch (\Exception $e) {
+            $mailError = $e->getMessage();
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'User created successfully',
-            'user' => $user
+            'user' => $user,
+            'mail_status' => $mailError ? false : true,
+            'mail_error' => $mailError
         ]);
+
+    } catch (\Exception $e) {
+
+        return response()->json([
+            'status' => false,
+            'message' => 'User creation failed',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
+
 
     // =========================
     // Toggle Active / Inactive
@@ -92,25 +147,25 @@ public function resetPassword(Request $request, $id)
 
 
     public function me(Request $request)
-{
-    $user = auth()->user();
+    {
+        $user = auth()->user();
 
-    if (!$user) {
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
         return response()->json([
-            'status' => false,
-            'message' => 'Unauthorized'
-        ], 401);
+            'status' => true,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'created_at' => $user->created_at
+            ]
+        ]);
     }
-
-    return response()->json([
-        'status' => true,
-        'data' => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'created_at' => $user->created_at
-        ]
-    ]);
-}
 }
