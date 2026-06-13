@@ -367,13 +367,14 @@ class VisaController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|digits:11',
+            'email' => 'required|email|max:255',
             'member' => 'required|string',
             'passport' => 'required|min:6|max:10',
             'invoice' => 'required|string|max:255|unique:visas,invoice,' . $id,
             'country' => 'required|array',
             'country.*' => 'exists:countries,id',
             'salesPerson' => 'required|exists:teams,id',
-            'applicantType' => 'required|in:job,business,others',
+            'applicantType' => 'required|in:job,business,doctor,lawyer,student,others',
             'date' => 'nullable|date',
             'notaryStatus' => 'nullable|in:Pending,Processing,Missing', // ✅ ADDED
         ]);
@@ -396,6 +397,11 @@ class VisaController extends Controller
             'blankOfficePad' => 'Blank Office Pad',
             'renewalTradeLicense' => 'Renewal Trade License',
             'memorandumLimited' => 'Memorandum Limited',
+            'bmdcCertificate' => 'BMDC Certificate',
+            'retirementCertificate' => 'Retirement Certificate',
+            'barCouncilCertificate' => 'Bar Council Certificate',
+            'studentId' => 'Student ID',
+            'recommendationLetter' => 'Recommendation Letter',
         ];
 
         // ================= FILE CHECK =================
@@ -431,6 +437,7 @@ class VisaController extends Controller
         $visa->update([
             'name' => $request->name,
             'phone' => $request->phone,
+            'email' => $request->email,
             'member' => $request->member,
             'passport' => $request->passport,
             'invoice' => $request->invoice,
@@ -447,6 +454,7 @@ class VisaController extends Controller
             'profession_name' => $request->profession_name,
             'missing_file' => $request->missing_file,
             'notary_status' => $request->notaryStatus ?? $visa->notary_status, // ✅ ADDED - keep existing if not provided
+            'asset_valuation' => $request->assetValuation ?? 0,
         ]);
 
         // ================= FILE UPLOAD =================
@@ -490,12 +498,13 @@ class VisaController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|digits:11',
+            'email' => 'required|email|max:255',
             'passport' => 'required|min:6|max:10',
             'invoice' => 'required|string|max:255|unique:visas,invoice',
             'country' => 'required|array',
             'country.*' => 'exists:countries,id',
             'salesPerson' => 'required|exists:teams,id',
-            'applicantType' => 'required|in:job,business,others',
+            'applicantType' => 'required|in:job,business,doctor,lawyer,student,others',
             'remainder_days' => 'required|integer|min:0',
             'note' => 'nullable|string|max:255',
             'member' => 'required|string',
@@ -522,6 +531,11 @@ class VisaController extends Controller
             'blankOfficePad' => 'Blank Office Pad',
             'renewalTradeLicense' => 'Renewal Trade License',
             'memorandumLimited' => 'Memorandum Limited',
+            'bmdcCertificate' => 'BMDC Certificate',
+            'retirementCertificate' => 'Retirement Certificate',
+            'barCouncilCertificate' => 'Bar Council Certificate',
+            'studentId' => 'Student ID',
+            'recommendationLetter' => 'Recommendation Letter',
         ];
 
         // ================= Selected Files =================
@@ -554,6 +568,7 @@ class VisaController extends Controller
         $visa->user_id = auth()->id();
         $visa->name = $request->name;
         $visa->phone = $request->phone;
+        $visa->email = $request->email;
         $visa->passport = $request->passport;
         $visa->invoice = $request->invoice;
         $visa->applicant_type = $request->applicantType;

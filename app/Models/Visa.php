@@ -12,12 +12,13 @@ class Visa extends Model
     protected $fillable = [
         'name',
         'phone',
+        'email',
         'passport',
         'country_id', // 🔥 FIXED (country -> country_id)
         'invoice',
         'user_id',
         'status',
-         'notary_status',
+        'notary_status',
         'note',
         'sales_person',
         'remainder_days',
@@ -45,7 +46,13 @@ class Visa extends Model
         'renewal_trade_license',
         'memorandum_limited',
         'profession_name',
-        'missing_file'
+        'missing_file',
+
+        'bmdc_certificate',
+        'retirement_certificate',
+        'bar_council_certificate',
+        'student_id',
+        'recommendation_letter',
     ];
 
     // 🔥 IMPORTANT: JSON cast for multiple countries
