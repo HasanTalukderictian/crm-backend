@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('visas', function (Blueprint $table) {
-            $table->enum('notary_status', ['Pending', 'Processing', 'Missing'])->nullable()->after('note');
+            $table->enum('notary_status', ['Pending', 'Processing', 'Missing', 'No Need'])->nullable()->after('note');
         });
     }
 

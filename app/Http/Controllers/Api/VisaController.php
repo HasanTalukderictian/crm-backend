@@ -352,7 +352,7 @@ class VisaController extends Controller
 
 
 
-    public function update(Request $request, $id)
+   public function update(Request $request, $id)
     {
         $visa = Visa::find($id);
 
@@ -376,7 +376,7 @@ class VisaController extends Controller
             'salesPerson' => 'required|exists:teams,id',
             'applicantType' => 'required|in:job,business,doctor,lawyer,student,others',
             'date' => 'nullable|date',
-            'notaryStatus' => 'nullable|in:Pending,Processing,Missing', // ✅ ADDED
+            'notaryStatus' => 'nullable|in:Pending,Processing,Missing,No Need',
         ]);
 
         // ================= FIELD LABELS =================
@@ -402,6 +402,12 @@ class VisaController extends Controller
             'barCouncilCertificate' => 'Bar Council Certificate',
             'studentId' => 'Student ID',
             'recommendationLetter' => 'Recommendation Letter',
+            // New student fields
+            'parentOfficeId' => 'Parent Office ID / Trade License',
+            'consentLetter' => 'Consent Letter',
+            'hotelBooking' => 'Hotel Booking Copy',
+            'airTicket' => 'Air Ticket',
+            'proofOfResidency' => 'Proof of Residency',
         ];
 
         // ================= FILE CHECK =================
@@ -449,12 +455,12 @@ class VisaController extends Controller
                 ? Carbon::parse($request->date)->format('Y-m-d')
                 : null,
             'salary_amount' => $request->salaryAmount,
+            'asset_valuation' => $request->assetValuation ?? 0,
             'remainder_days' => $request->remainder_days,
             'note' => $request->note,
             'profession_name' => $request->profession_name,
             'missing_file' => $request->missing_file,
-            'notary_status' => $request->notaryStatus ?? $visa->notary_status, // ✅ ADDED - keep existing if not provided
-            'asset_valuation' => $request->assetValuation ?? 0,
+            'notary_status' => $request->notaryStatus ?? $visa->notary_status,
         ]);
 
         // ================= FILE UPLOAD =================
@@ -492,7 +498,7 @@ class VisaController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+ public function store(Request $request)
     {
         // ================= Validation =================
         $request->validate([
@@ -510,7 +516,7 @@ class VisaController extends Controller
             'member' => 'required|string',
             'date' => 'nullable|date',
             'status' => 'nullable|in:Pending,Processing,Complete,Cancle',
-            'notaryStatus' => 'nullable|in:Pending,Processing,Missing', // ✅ Fixed
+            'notaryStatus' => 'nullable|in:Pending,Processing,Missing,No Need',
         ]);
 
         // ================= Labels Mapping =================
@@ -536,6 +542,12 @@ class VisaController extends Controller
             'barCouncilCertificate' => 'Bar Council Certificate',
             'studentId' => 'Student ID',
             'recommendationLetter' => 'Recommendation Letter',
+            // New student fields
+            'parentOfficeId' => 'Parent Office ID / Trade License',
+            'consentLetter' => 'Consent Letter',
+            'hotelBooking' => 'Hotel Booking Copy',
+            'airTicket' => 'Air Ticket',
+            'proofOfResidency' => 'Proof of Residency',
         ];
 
         // ================= Selected Files =================
@@ -579,10 +591,11 @@ class VisaController extends Controller
         $visa->note = $request->note ?? null;
         $visa->date = $request->date ? Carbon::parse($request->date)->format('Y-m-d') : null;
         $visa->salary_amount = $request->salaryAmount;
+        $visa->asset_valuation = $request->assetValuation ?? 0;
         $visa->status = $request->status ?? 'Pending';
         $visa->profession_name = $request->profession_name;
         $visa->missing_file = $request->missing_file;
-        $visa->notary_status = $request->notaryStatus ?? 'Pending'; // ✅ Fixed - using notaryStatus from request
+        $visa->notary_status = $request->notaryStatus ?? null;
 
         // ================= File Upload =================
         foreach ($fieldLabels as $file => $label) {
@@ -620,6 +633,7 @@ class VisaController extends Controller
             'data' => $visa
         ]);
     }
+
 
 
 

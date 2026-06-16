@@ -1,5 +1,3 @@
-// database/migrations/xxxx_add_new_fields_to_visas_table.php
-
 <?php
 
 use Illuminate\Database\Migrations\Migration;

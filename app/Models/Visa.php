@@ -14,7 +14,7 @@ class Visa extends Model
         'phone',
         'email',
         'passport',
-        'country_id', // 🔥 FIXED (country -> country_id)
+        'country_id',
         'invoice',
         'user_id',
         'status',
@@ -53,6 +53,12 @@ class Visa extends Model
         'bar_council_certificate',
         'student_id',
         'recommendation_letter',
+
+        'parent_office_id',
+        'consent_letter',
+        'hotel_booking',
+        'air_ticket',
+        'proof_of_residency',
     ];
 
     // 🔥 IMPORTANT: JSON cast for multiple countries
