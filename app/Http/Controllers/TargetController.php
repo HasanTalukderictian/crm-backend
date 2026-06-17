@@ -5,20 +5,19 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Target;
 use App\Models\Visa;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class TargetController extends Controller
 {
-    //
-
-
     public function index(Request $request)
     {
         $query = Target::with('user');
 
-        // Optional filters
         if ($request->user_id) {
             $query->where('user_id', $request->user_id);
         }
@@ -33,15 +32,11 @@ class TargetController extends Controller
 
         $targets = $query->orderBy('id', 'desc')->paginate(10);
 
-        // 🔥 modify response data
         $targets->getCollection()->transform(function ($t) {
             $t->remaining = $t->target - $t->achieved;
-
-            // optional progress %
             $t->progress = $t->target > 0
                 ? round(($t->achieved / $t->target) * 100, 2)
                 : 0;
-
             return $t;
         });
 
@@ -50,7 +45,6 @@ class TargetController extends Controller
             'data' => $targets
         ]);
     }
-
 
     public function store(Request $request)
     {
@@ -61,7 +55,6 @@ class TargetController extends Controller
             'month'   => 'required|integer|min:1|max:12',
         ]);
 
-        // 🔥 check if already exists
         $exists = Target::where('user_id', $request->user_id)
             ->where('year', $request->year)
             ->where('month', $request->month)
@@ -74,7 +67,6 @@ class TargetController extends Controller
             ], 409);
         }
 
-        // create only (no update allowed)
         $target = Target::create([
             'user_id' => $request->user_id,
             'target'  => $request->target,
@@ -82,13 +74,15 @@ class TargetController extends Controller
             'month'   => $request->month,
         ]);
 
+        // 🟢 Send email notification to the user
+        $this->sendTargetEmail($target->user_id, $target, 'created');
+
         return response()->json([
             'status' => true,
             'message' => 'Target set successfully',
             'data' => $target
         ]);
     }
-
 
     public function update(Request $request, $id)
     {
@@ -107,7 +101,6 @@ class TargetController extends Controller
             ], 404);
         }
 
-        // 🔥 Optional: prevent duplicate (same user, year, month)
         $exists = Target::where('user_id', $target->user_id)
             ->where('year', $request->year)
             ->where('month', $request->month)
@@ -127,6 +120,9 @@ class TargetController extends Controller
             'month'  => $request->month,
         ]);
 
+        // 🟢 Send email notification to the user
+        $this->sendTargetEmail($target->user_id, $target, 'updated');
+
         return response()->json([
             'status' => true,
             'message' => 'Target updated successfully',
@@ -134,6 +130,46 @@ class TargetController extends Controller
         ]);
     }
 
+    /**
+     * 📧 Send target notification email to user
+     */
+    private function sendTargetEmail($userId, $target, $action = 'created')
+    {
+        try {
+            $user = User::find($userId);
+
+            if (!$user || !$user->email) {
+                return; // Skip if user has no email
+            }
+
+            $monthName = date('F', mktime(0, 0, 0, $target->month, 1));
+
+            $subject = $action === 'created'
+                ? "🎯 New Target Assigned for {$monthName} {$target->year}"
+                : "🎯 Target Updated for {$monthName} {$target->year}";
+
+            $data = [
+                'user' => $user,
+                'target' => $target,
+                'monthName' => $monthName,
+                'action' => $action,
+                'targetAmount' => number_format($target->target, 0),
+                'year' => $target->year,
+                'month' => $target->month,
+            ];
+
+            Mail::send('emails.target_notification', $data, function ($message) use ($user, $subject) {
+                $message->to($user->email, $user->name)
+                        ->subject($subject)
+                        ->from(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME'));
+            });
+
+            Log::info("Target email sent to: {$user->email} for month {$target->month}/{$target->year}");
+        } catch (\Exception $e) {
+            
+            Log::error("Failed to send target email: " . $e->getMessage());
+        }
+    }
 
     public function monthlyAchieved(Request $request)
     {
@@ -141,12 +177,10 @@ class TargetController extends Controller
 
         $query = Target::query();
 
-        // 🔐 role check
         if (auth()->check() && auth()->user()->role !== 'admin') {
             $query->where('user_id', auth()->id());
         }
 
-        // 🔹 get monthly data (target + achieved)
         $results = $query
             ->where('year', $year)
             ->selectRaw('month, SUM(target) as total_target, SUM(achieved) as total_achieved')
@@ -154,11 +188,9 @@ class TargetController extends Controller
             ->get()
             ->keyBy('month');
 
-        // 🔹 build full 12 months
         $months = [];
 
         for ($m = 1; $m <= 12; $m++) {
-
             $target = (int) ($results[$m]->total_target ?? 0);
             $achieved = (int) ($results[$m]->total_achieved ?? 0);
 
@@ -166,7 +198,7 @@ class TargetController extends Controller
                 'month' => $m,
                 'target' => $target,
                 'achieved' => $achieved,
-                'remaining' => max($target - $achieved, 0), // negative avoid
+                'remaining' => max($target - $achieved, 0),
             ];
         }
 
@@ -177,16 +209,14 @@ class TargetController extends Controller
         ]);
     }
 
-
     public function topUsersByAchieved(Request $request)
     {
         $year  = $request->year ?? date('Y');
-        $limit = 5; // ✅ always top 5
+        $limit = 5;
 
         $monthsData = [];
 
         for ($month = 1; $month <= 12; $month++) {
-
             $topUsers = Target::query()
                 ->with('user')
                 ->where('year', $year)
@@ -219,53 +249,43 @@ class TargetController extends Controller
         ]);
     }
 
+    public function achievedSummary(Request $request)
+    {
+        $dateInput = $request->date
+            ? Carbon::parse($request->date, 'Asia/Dhaka')
+            : Carbon::now('Asia/Dhaka');
 
+        $targetDate = $dateInput->toDateString();
+        $year = $dateInput->year;
+        $month = $dateInput->month;
 
+        $query = Target::query();
 
-   public function achievedSummary(Request $request)
-{
-    // 🔹 রিকোয়েস্ট থেকে তারিখ নেওয়া, না থাকলে বর্তমান সময় (BD Timezone)
-    $dateInput = $request->date
-        ? Carbon::parse($request->date, 'Asia/Dhaka')
-        : Carbon::now('Asia/Dhaka');
+        if (auth()->check() && auth()->user()->role !== 'admin') {
+            $query->where('user_id', auth()->id());
+        }
 
-    $targetDate = $dateInput->toDateString(); // Y-m-d ফরম্যাট (যেমন: "2026-05-23")
-    $year = $dateInput->year;
-    $month = $dateInput->month;
+        $todayAchieved = (clone $query)
+            ->whereRaw("DATE(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$targetDate])
+            ->sum('achieved');
 
-    $query = Target::query();
+        $monthlyAchieved = (clone $query)
+            ->whereRaw("YEAR(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$year])
+            ->whereRaw("MONTH(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$month])
+            ->sum('achieved');
 
-    // 🔐 রোল চেক
-    if (auth()->check() && auth()->user()->role !== 'admin') {
-        $query->where('user_id', auth()->id());
+        $totalAchieved = (clone $query)->sum('achieved');
+
+        return response()->json([
+            'status' => true,
+            'data' => [
+                'date'             => $targetDate,
+                'today_achieved'   => (int) $todayAchieved,
+                'monthly_achieved' => (int) $monthlyAchieved,
+                'total_achieved'   => (int) $totalAchieved,
+            ]
+        ]);
     }
-
-    // 🔹 ১. Today achieved (সরাসরি BD টাইমজোনে তারিখ ম্যাচ করা)
-    // ডাটাবেজের UTC সময়কে Asia/Dhaka তে রূপান্তর করে আজকের তারিখের সাথে মেলানো হচ্ছে
-    $todayAchieved = (clone $query)
-        ->whereRaw("DATE(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$targetDate])
-        ->sum('achieved');
-
-    // 🔹 ২. Monthly achieved (সরাসরি মাস এবং বছর ফিল্টার)
-    $monthlyAchieved = (clone $query)
-        ->whereRaw("YEAR(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$year])
-        ->whereRaw("MONTH(CONVERT_TZ(created_at, '+00:00', '+06:00')) = ?", [$month])
-        ->sum('achieved');
-
-    // 🔹 ৩. Total achieved
-    $totalAchieved = (clone $query)->sum('achieved');
-
-    return response()->json([
-        'status' => true,
-        'data' => [
-            'date'             => $targetDate,
-            'today_achieved'   => (int) $todayAchieved,
-            'monthly_achieved' => (int) $monthlyAchieved,
-            'total_achieved'   => (int) $totalAchieved,
-        ]
-    ]);
-}
-
 
     public function monthlySummary(Request $request)
     {
@@ -277,7 +297,6 @@ class TargetController extends Controller
         $targetQuery = Target::where('year', $year)
             ->where('month', $month);
 
-        // 🔐 Role-based filter
         if ($user->role !== 'admin') {
             $targetQuery->where('user_id', $user->id);
         } else {
@@ -288,16 +307,9 @@ class TargetController extends Controller
 
         $targets = $targetQuery->get();
 
-        // 🔹 Total Target
         $totalTarget = $targets->sum('target');
-
-        // 🔹 Total Achieved (stored in target table)
         $totalAchieved = $targets->sum('achieved');
-
-        // 🔹 Remaining
         $totalRemaining = $totalTarget - $totalAchieved;
-
-        // 🔹 Progress
         $progress = $totalTarget > 0
             ? round(($totalAchieved / $totalTarget) * 100, 2)
             : 0;
