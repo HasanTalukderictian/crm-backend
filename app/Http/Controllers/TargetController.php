@@ -166,7 +166,7 @@ class TargetController extends Controller
 
             Log::info("Target email sent to: {$user->email} for month {$target->month}/{$target->year}");
         } catch (\Exception $e) {
-            
+
             Log::error("Failed to send target email: " . $e->getMessage());
         }
     }
